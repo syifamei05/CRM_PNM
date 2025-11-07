@@ -1,21 +1,38 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import logo from '../../../assets/pnm-pnmim.png';
-import { FaChevronDown, FaChevronUp } from 'react-icons/fa';
+import { FaChevronDown, FaChevronUp, FaUserCircle, FaSignOutAlt } from 'react-icons/fa';
 import { motion, AnimatePresence } from 'framer-motion';
 import Avatar from 'react-avatar';
 import { useAuth } from '../../auth/hooks/useAuth.hook';
+import { useNavigate } from 'react-router-dom';
 
 const Sidebar = () => {
   const { pathname } = useLocation();
   const [openRisk, setOpenRisk] = useState(false);
+  const [menuOpen, setMenuOpen] = useState(false);
   const { user, logout } = useAuth();
+  const menuRef = useRef(null);
+  const nvg = useNavigate();
 
   useEffect(() => {
     if (pathname.startsWith('/dashboard/risk-form')) {
       setOpenRisk(true);
     }
   }, [pathname]);
+
+  // Tutup dropup ketika klik di luar
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (menuRef.current && !menuRef.current.contains(event.target)) {
+        setMenuOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, []);
 
   const riskItems = ['investasi', 'pasar', 'likuiditas', 'operasional', 'hukum', 'stratejik', 'kepatuhan', 'reputasi'];
 
@@ -100,17 +117,41 @@ const Sidebar = () => {
         </ul>
       </nav>
 
-      <div className="mt-auto flex items-center gap-3 p-3 border-t border-gray-200 cursor-pointer">
-        <Avatar src={user?.photoURL} name={user?.userID || 'User'} size="40" round={true} color="#2563EB" />
-        <div className="flex-1">
-          <div className="font-medium text-gray-800">{user?.userID || 'Nama User'}</div>
-          <div className="text-sm text-gray-500">{user?.role || 'Divisi / Role'}</div>
-        </div>
-        {logout && (
-          <button onClick={logout} className="text-sm text-red-600 hover:text-red-800 font-medium" title="Logout">
-            Logout
-          </button>
-        )}
+      <div className="mt-auto relative flex items-center gap-3 p-3 border-t border-gray-200" ref={menuRef}>
+        <button onClick={() => setMenuOpen(!menuOpen)} className="flex items-start gap-3 w-full">
+          <Avatar src={user?.photoURL} name={user?.userID || 'User'} size="40" round={true} color="#2563EB" />
+          <div className="flex-1 flex flex-col items-start justify-center">
+            <div className="font-medium text-gray-800 text-left">{user?.userID || 'Nama User'}</div>
+            <div className="text-sm text-gray-500 text-left">{user?.role || 'Divisi / Role'}</div>
+          </div>
+        </button>
+
+        <AnimatePresence>
+          {menuOpen && (
+            <motion.div
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: 10 }}
+              transition={{ duration: 0.2 }}
+              className="absolute bottom-full mb-2 left-0 w-52 bg-white border rounded-lg shadow-lg p-2 z-50"
+            >
+              <button onClick={() => console.log('Go to Profile')} className="flex items-center gap-2 w-full px-2 py-1 hover:bg-gray-100 rounded">
+                <FaUserCircle />
+                <span className="text-sm">Profile</span>
+              </button>
+              <button
+                onClick={() => {
+                  logout(); 
+                  nvg('/login');
+                }}
+                className="flex items-center gap-2 w-full px-2 py-1 hover:bg-gray-100 rounded text-red-600"
+              >
+                <FaSignOutAlt />
+                <span className="text-sm">Logout</span>
+              </button>
+            </motion.div>
+          )}
+        </AnimatePresence>
       </div>
     </div>
   );
