@@ -1,7 +1,17 @@
 import React from 'react';
 import { FaUserCircle, FaSignOutAlt } from 'react-icons/fa';
+import { useAuth } from '../../auth/hooks/useAuth.hook';
+import { useNavigate } from 'react-router-dom';
 
 const Navbar = () => {
+  const { user, logout } = useAuth();
+  const navigate = useNavigate();
+
+  const handleLogout = () => {
+    logout();
+    navigate('/login'); 
+  };
+
   return (
     <nav className="bg-blue-600 text-white p-4 shadow-md">
       <div className="flex justify-between items-center px-4">
@@ -10,10 +20,10 @@ const Navbar = () => {
         <div className="flex items-center space-x-3">
           <button className="flex items-center space-x-2 hover:bg-blue-700 px-3 py-2 rounded-lg transition">
             <FaUserCircle className="text-2xl" />
-            <span className="text-sm font-medium">Profile</span>
+            <span className="text-sm font-medium">{user?.userID || 'Guest'}</span>
           </button>
 
-          <button className="flex items-center space-x-2 hover:bg-blue-700 px-3 py-2 rounded-lg transition">
+          <button onClick={handleLogout} className="flex items-center space-x-2 hover:bg-blue-700 px-3 py-2 rounded-lg transition">
             <FaSignOutAlt className="text-lg" />
             <span className="text-sm font-medium">Logout</span>
           </button>
