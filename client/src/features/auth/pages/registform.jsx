@@ -32,8 +32,8 @@ export default function RegisterPage() {
       <div className="flex-1 flex items-center justify-center p-6">
         <div className="w-full max-w-md backdrop-blur-md bg-white/50 shadow-2xl rounded-2xl p-8 border border-white/40">
           <div className="text-center mb-8">
-            <img src={fileIMG} alt="PNM Logo" className="mx-auto w-64 drop-shadow-lg" />
-            <h1 className="text-3xl font-semibold text-gray-800 mt-4">Register Akun Baru</h1>
+            <img src={fileIMG} alt="PNM Logo" className="mx-auto w-64 mt-[-50px] drop-shadow-lg" />
+            <h1 className="text-2xl font-semibold text-gray-800 mt-[-40px]">Register Akun Baru</h1>
             <p className="text-gray-600 text-sm mt-2">Silahkan isi form di bawah untuk membuat akun</p>
           </div>
 
