@@ -2,12 +2,13 @@ import React, { useEffect, useState } from 'react';
 import { useLocation } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useDarkMode } from '../../../shared/components/Darkmodecontext';
-
+import RiskManagementDashboard from '../components/chartComponents/riskmanagement';
 export default function Dashboard() {
   const loc = useLocation();
   const { darkMode } = useDarkMode();
   const [showDialog, setShowDialog] = useState(false);
   const [dialogMessage, setDialogMessage] = useState('');
+  const [activeView, setActiveView] = useState('overview'); // 'overview' atau 'risk-kpi'
 
   useEffect(() => {
     if (loc.state?.fromLogin) {
@@ -63,12 +64,20 @@ export default function Dashboard() {
     border: `1px solid ${darkMode ? 'var(--border-color)' : '#e5e7eb'}`,
   };
 
-  return (
-    <div className={`p-6 min-h-screen ${darkMode ? 'dark-mode-bg' : 'bg-gray-50'}`}>
-      <motion.h1 initial={{ opacity: 0, y: -15 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.6 }} className={`text-3xl font-bold mb-6 ${darkMode ? 'dark-mode-text' : 'text-gray-900'}`}>
-        Dashboard
-      </motion.h1>
+  const tabButtonStyle = (isActive) => ({
+    padding: '0.75rem 1.5rem',
+    borderRadius: '0.5rem',
+    fontWeight: '600',
+    backgroundColor: isActive ? (darkMode ? '#3b82f6' : '#2563eb') : 'transparent',
+    color: isActive ? 'white' : darkMode ? '#d1d5db' : '#6b7280',
+    border: `1px solid ${isActive ? 'transparent' : darkMode ? '#374151' : '#d1d5db'}`,
+    cursor: 'pointer',
+    transition: 'all 0.2s ease',
+  });
 
+  // Render Overview Dashboard (default)
+  const renderOverview = () => (
+    <>
       <motion.div initial={{ opacity: 0, y: 15 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5, delay: 0.2 }} style={welcomeCardStyle}>
         <h2 className="text-2xl font-semibold">Welcome Back 👋</h2>
         <p className="text-blue-100 mt-1">Senang melihat Anda kembali. Semoga hari Anda produktif!</p>
@@ -96,7 +105,6 @@ export default function Dashboard() {
 
       <motion.div initial={{ opacity: 0, y: 25 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.6, delay: 0.6 }} style={activityCardStyle}>
         <h2 className={`text-xl font-semibold mb-4 ${darkMode ? 'dark-mode-text' : 'text-gray-900'}`}>Recent Activity</h2>
-
         <div className="space-y-3">
           <div style={activityItemStyle}>
             ✅ Risk mitigation completed for <b>Operational Risk</b>
@@ -109,7 +117,32 @@ export default function Dashboard() {
           </div>
         </div>
       </motion.div>
+    </>
+  );
 
+  return (
+    <div className={`p-6 min-h-screen ${darkMode ? 'dark-mode-bg' : 'bg-gray-50'}`}>
+      {/* Header dengan Tabs */}
+      <div className="flex justify-between items-center mb-6">
+        <motion.h1 initial={{ opacity: 0, y: -15 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.6 }} className={`text-3xl font-bold ${darkMode ? 'dark-mode-text' : 'text-gray-900'}`}>
+          Dashboard
+        </motion.h1>
+
+        {/* View Toggle */}
+        <div className="flex gap-2 p-1 rounded-lg bg-gray-100 dark:bg-gray-800">
+          {/* <button onClick={() => setActiveView('overview')} style={tabButtonStyle(activeView === 'overview')}>
+            Overview
+          </button>
+          <button onClick={() => setActiveView('risk-kpi')} style={tabButtonStyle(activeView === 'risk-kpi')}>
+            Risk KPI
+          </button> */}
+        </div>
+      </div>
+
+      {/* Konten Berdasarkan Active View */}
+      {activeView === 'overview' ? renderOverview() : <RiskManagementDashboard />}
+
+      {/* Welcome Dialog */}
       <AnimatePresence>
         {showDialog && (
           <motion.div className="fixed inset-0 flex items-center justify-center bg-black/40 backdrop-blur-sm z-50" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>

@@ -3,19 +3,13 @@ import React, { createContext, useContext, useState, useEffect, useMemo } from '
 const DarkModeContext = createContext();
 
 export const DarkModeProvider = ({ children }) => {
-  const [darkMode, setDarkMode] = useState(false);
-
-  useEffect(() => {
-    const saved = localStorage.getItem('darkMode') === 'true';
-    setDarkMode(saved);
-    if (saved) {
-      document.body.classList.add('dark-mode');
-      document.documentElement.classList.add('dark');
-    } else {
-      document.body.classList.remove('dark-mode');
-      document.documentElement.classList.remove('dark');
+  const [darkMode, setDarkMode] = useState(() => {
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('darkMode');
+      return saved === 'true' || false;
     }
-  }, []);
+    return false;
+  });
 
   useEffect(() => {
     if (darkMode) {
@@ -37,4 +31,10 @@ export const DarkModeProvider = ({ children }) => {
   return <DarkModeContext.Provider value={value}>{children}</DarkModeContext.Provider>;
 };
 
-export const useDarkMode = () => useContext(DarkModeContext);
+export const useDarkMode = () => {
+  const context = useContext(DarkModeContext);
+  if (!context) {
+    throw new Error('useDarkMode must be used within a DarkModeProvider');
+  }
+  return context;
+};
