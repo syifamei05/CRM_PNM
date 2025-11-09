@@ -13,6 +13,7 @@ import { InvestasiModule } from './investasi/investasi.module';
 import { PasarModule } from './pasar/pasar.module';
 import { LikuiditasModule } from './likuiditas/likuiditas.module';
 import { OperasionalModule } from './operasional/operasional.module';
+import { DivisiModule } from './divisi/divisi.module';
 
 @Module({
   imports: [
@@ -29,6 +30,7 @@ import { OperasionalModule } from './operasional/operasional.module';
     PasarModule,
     LikuiditasModule,
     OperasionalModule,
+    DivisiModule,
   ],
 
   controllers: [AppController],

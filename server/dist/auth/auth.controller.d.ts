@@ -40,5 +40,5 @@ export declare class AuthController {
     } | {
         message: string;
         userID: string;
-    }>;
+    } | undefined>;
 }

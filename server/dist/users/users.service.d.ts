@@ -25,5 +25,5 @@ export declare class UsersService {
     } | {
         message: string;
         userID: string;
-    }>;
+    } | undefined>;
 }

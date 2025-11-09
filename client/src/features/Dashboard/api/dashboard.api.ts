@@ -1,4 +1,5 @@
 import axios from 'axios';
+
 export const BASE_URL_DASHBOARD_API = 'http://localhost:5530/api/v1';
 
 const DB_API = axios.create({
@@ -14,4 +15,4 @@ DB_API.interceptors.request.use((d) => {
   return d;
 });
 
-export default DB_API
+export default DB_API;

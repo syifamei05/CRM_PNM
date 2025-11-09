@@ -156,7 +156,9 @@ let UsersService = class UsersService {
             };
         }
         catch (error) {
-            throw new common_1.InternalServerErrorException('Failed to process password reset request');
+            if (error instanceof Error) {
+                throw new common_1.InternalServerErrorException('Failed to process password reset request');
+            }
         }
     }
 };

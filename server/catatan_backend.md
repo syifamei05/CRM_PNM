@@ -13,7 +13,7 @@ cek auth dan register service (OK)
 
 add backend user dan integrasikan dengan auth (OK)
 
-Buat agar darkmode saat refresh tidak hilang
+Buat agar darkmode saat refresh tidak hilang (OK)
 
 ## Ringkasan (Summary)
 
@@ -58,3 +58,10 @@ Buat updatePassword()
 ✅ Integrasi dengan Zustand (jika mau global state)
 
 git checkout -b fitur-test-dummy mainrepo/fitur-test-dummy
+
+## NGROK COLLAB PAKE ENV
+
+conth: 
+VITE_API_BASE_URL=https://d01f29140ee4.ngrok-free.app/api/v1
+
+await axios.get(`${import.meta.env.VITE_API_BASE_URL}/auth/me`);
