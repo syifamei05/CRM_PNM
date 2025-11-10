@@ -56,7 +56,7 @@ export class UsersService {
 
   async updateUserDivision(
     user_id: number,
-    divisiId: number | null,
+    divisiId: number,
   ): Promise<GetUserDto> {
     try {
       const user = await this.usersRepository.findOne({
@@ -68,8 +68,10 @@ export class UsersService {
         throw new NotFoundException(`User with ID ${user_id} not found`);
       }
 
-      if (divisiId !== null) {
-        const divisi = await this.divisiRepository.findOne({
+      let divisi: Divisi | null = null;
+
+      if (divisiId) {
+        divisi = await this.divisiRepository.findOne({
           where: { divisi_id: divisiId },
         });
 
@@ -78,29 +80,14 @@ export class UsersService {
         }
       }
 
-      await this.usersRepository
-        .createQueryBuilder()
-        .update(User)
-        .set({ divisi: divisiId === null ? null : { divisi_id: divisiId } })
-        .where('user_id = :user_id', { user_id })
-        .execute();
-
-      // Get updated user data
-      const updatedUser = await this.usersRepository.findOne({
-        where: { user_id },
-        relations: ['divisi', 'auth'],
-      });
-
-      if (!updatedUser) {
-        throw new NotFoundException(
-          `User with ID ${user_id} not found after update`,
-        );
-      }
+      user.divisi = divisi;
+      const updatedUser = await this.usersRepository.save(user);
 
       return plainToInstance(GetUserDto, updatedUser, {
         excludeExtraneousValues: true,
       });
     } catch (error) {
+      console.error('Error in updateUserDivision:', error);
       if (error instanceof NotFoundException) {
         throw error;
       }
@@ -122,21 +109,33 @@ export class UsersService {
     }
   }
 
-  async getUserById(user_id: number): Promise<GetUserDto> {
+  async getUserById(user_id: number): Promise<any> {
     try {
+      // Simple query tanpa relations dulu
       const user = await this.usersRepository.findOne({
         where: { user_id },
-        relations: ['auth', 'divisi'],
       });
 
-      if (!user)
+      if (!user) {
         throw new NotFoundException(`User with ID ${user_id} not found`);
-
-      return plainToInstance(GetUserDto, user, {
-        excludeExtraneousValues: true,
-      });
+      }
+      return {
+        user_id: user.user_id,
+        userID: user.userID,
+        role: user.role,
+        gender: user.gender,
+        created_at: user.created_at,
+        updated_at: user.updated_at,
+        divisi: user.divisi
+          ? {
+              divisi_id: user.divisi.divisi_id,
+              name: user.divisi.name,
+            }
+          : null,
+      };
     } catch (error) {
-      throw new InternalServerErrorException('Failed to fetch user');
+      console.error('Backend Error:', error);
+      throw new InternalServerErrorException('Database error');
     }
   }
 

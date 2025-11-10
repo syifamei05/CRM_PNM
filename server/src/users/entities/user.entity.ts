@@ -12,6 +12,7 @@ import {
 import { Gender, Role } from '../enum/userEnum';
 import { Auth } from 'src/auth/entities/auth.entity';
 import { Divisi } from 'src/divisi/entities/divisi.entity';
+
 @Entity('users')
 export class User {
   @PrimaryGeneratedColumn()
@@ -45,16 +46,13 @@ export class User {
 
   @ManyToOne(() => Divisi, (divisi) => divisi.users, {
     nullable: true,
-    onDelete: 'SET NULL',
+    eager: true,
   })
-  @JoinColumn({
-    name: 'divisi_id',
-  })
+  @JoinColumn({ name: 'divisi_id' })
   divisi: Divisi | null;
 
   @OneToOne(() => Auth, (auth) => auth.user, {
     cascade: true,
-    eager: true,
   })
   auth: Auth;
 }

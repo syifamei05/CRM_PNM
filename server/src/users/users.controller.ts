@@ -6,6 +6,8 @@ import {
   Delete,
   Body,
   ParseIntPipe,
+  UsePipes,
+  ValidationPipe,
 } from '@nestjs/common';
 import { UsersService } from './users.service';
 import { UpdateUserDto } from './dto/update-user.dto';
@@ -39,9 +41,10 @@ export class UsersController {
   }
 
   @Patch(':id/division')
-  updateUserDivision(
+  @UsePipes(new ValidationPipe({ transform: true }))
+  async updateUserDivision(
     @Param('id') id: string,
-    @Body() body: { divisiId: number | null }, // Bisa null untuk remove divisi
+    @Body() body: { divisiId: number },
   ) {
     return this.usersService.updateUserDivision(+id, body.divisiId);
   }

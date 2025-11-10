@@ -11,9 +11,9 @@ export declare class UsersService {
     private readonly divisiRepository;
     constructor(usersRepository: Repository<User>, AuthRepository: Repository<Auth>, divisiRepository: Repository<Divisi>);
     register(dto: RegisterDto): Promise<Auth>;
-    updateUserDivision(user_id: number, divisiId: number | null): Promise<GetUserDto>;
+    updateUserDivision(user_id: number, divisiId: number): Promise<GetUserDto>;
     getUsersData(): Promise<GetUserDto[]>;
-    getUserById(user_id: number): Promise<GetUserDto>;
+    getUserById(user_id: number): Promise<any>;
     updateUserById(user_id: number, dto: UpdateUserDto): Promise<GetUserDto>;
     deleteUserById(user_id: number): Promise<{
         message: string;

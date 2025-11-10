@@ -33,7 +33,7 @@ let UsersController = class UsersController {
     deleteUser(id) {
         return this.usersService.deleteUserById(id);
     }
-    updateUserDivision(id, body) {
+    async updateUserDivision(id, body) {
         return this.usersService.updateUserDivision(+id, body.divisiId);
     }
 };
@@ -68,11 +68,12 @@ __decorate([
 ], UsersController.prototype, "deleteUser", null);
 __decorate([
     (0, common_1.Patch)(':id/division'),
+    (0, common_1.UsePipes)(new common_1.ValidationPipe({ transform: true })),
     __param(0, (0, common_1.Param)('id')),
     __param(1, (0, common_1.Body)()),
     __metadata("design:type", Function),
     __metadata("design:paramtypes", [String, Object]),
-    __metadata("design:returntype", void 0)
+    __metadata("design:returntype", Promise)
 ], UsersController.prototype, "updateUserDivision", null);
 exports.UsersController = UsersController = __decorate([
     (0, common_1.Controller)('users'),

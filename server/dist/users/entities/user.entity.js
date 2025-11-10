@@ -65,17 +65,14 @@ __decorate([
 __decorate([
     (0, typeorm_1.ManyToOne)(() => divisi_entity_1.Divisi, (divisi) => divisi.users, {
         nullable: true,
-        onDelete: 'SET NULL',
+        eager: true,
     }),
-    (0, typeorm_1.JoinColumn)({
-        name: 'divisi_id',
-    }),
+    (0, typeorm_1.JoinColumn)({ name: 'divisi_id' }),
     __metadata("design:type", Object)
 ], User.prototype, "divisi", void 0);
 __decorate([
     (0, typeorm_1.OneToOne)(() => auth_entity_1.Auth, (auth) => auth.user, {
         cascade: true,
-        eager: true,
     }),
     __metadata("design:type", auth_entity_1.Auth)
 ], User.prototype, "auth", void 0);

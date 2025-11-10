@@ -28,16 +28,6 @@ export class GetUserDto {
   auth: GetAuthResponseDto;
 
   @Expose()
-  @Transform((params: TransformFnParams) => {
-    const src = params.obj as { divisi?: { divisi_id: number; name: string } };
-    if (src.divisi) {
-      return {
-        divisi_id: src.divisi.divisi_id,
-        name: src.divisi.name,
-      };
-    }
-    return null;
-  })
   @Type(() => DivisiResponseDto)
   divisi: DivisiResponseDto | null;
 }

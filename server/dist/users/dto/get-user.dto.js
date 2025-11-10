@@ -60,16 +60,6 @@ __decorate([
 ], GetUserDto.prototype, "auth", void 0);
 __decorate([
     (0, class_transformer_1.Expose)(),
-    (0, class_transformer_1.Transform)((params) => {
-        const src = params.obj;
-        if (src.divisi) {
-            return {
-                divisi_id: src.divisi.divisi_id,
-                name: src.divisi.name,
-            };
-        }
-        return null;
-    }),
     (0, class_transformer_1.Type)(() => divisi_response_dto_1.DivisiResponseDto),
     __metadata("design:type", Object)
 ], GetUserDto.prototype, "divisi", void 0);

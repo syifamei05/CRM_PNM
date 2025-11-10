@@ -5,12 +5,12 @@ export declare class UsersController {
     private readonly usersService;
     constructor(usersService: UsersService);
     getAllUsers(): Promise<GetUserDto[]>;
-    getUserById(id: number): Promise<GetUserDto>;
+    getUserById(id: number): Promise<any>;
     updateUser(id: number, dto: UpdateUserDto): Promise<GetUserDto>;
     deleteUser(id: number): Promise<{
         message: string;
     }>;
     updateUserDivision(id: string, body: {
-        divisiId: number | null;
+        divisiId: number;
     }): Promise<GetUserDto>;
 }
