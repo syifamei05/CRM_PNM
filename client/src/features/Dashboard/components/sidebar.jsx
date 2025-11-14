@@ -7,6 +7,7 @@ import Avatar from 'react-avatar';
 import { useAuth } from '../../auth/hooks/useAuth.hook';
 import { useDarkMode } from '../../../shared/components/Darkmodecontext';
 import { ChevronsUpDown } from 'lucide-react';
+import { Funnel, FunctionSquareIcon } from 'lucide-react';
 
 const Sidebar = () => {
   const { pathname } = useLocation();
