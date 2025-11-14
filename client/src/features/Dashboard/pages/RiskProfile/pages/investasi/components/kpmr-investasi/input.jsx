@@ -3,10 +3,10 @@ import React from 'react';
 // 🔹 Wrapper umum untuk field (label + children + hint)
 function FieldWrap({ label, hint, className = '', children }) {
   return (
-    <label className={`block space-y-1 ${className}`}>
-      {label && <div className="text-sm font-medium text-gray-600">{label}</div>}
+    <label className={`block space-y-1.5 ${className}`}>
+      {label && <div className="text-sm font-medium text-gray-700">{label}</div>}
       {children}
-      {hint && <div className="text-xs text-gray-400">{hint}</div>}
+      {hint && <div className="text-xs text-gray-500 mt-1">{hint}</div>}
     </label>
   );
 }
@@ -22,9 +22,9 @@ function BaseInput({ type = 'text', value, onChange, placeholder, readOnly = fal
       min={min}
       max={max}
       onChange={(e) => onChange(type === 'number' ? (e.target.value === '' ? '' : Number(e.target.value)) : e.target.value)}
-      className={`w-full rounded-lg border border-gray-300 px-3 py-2 bg-white 
-        focus:ring-2 focus:ring-blue-300 focus:border-blue-500 transition 
-        ${readOnly ? 'text-gray-700 bg-gray-50' : ''}`}
+      className={`w-full rounded-lg border border-gray-300 px-3 py-2 text-sm bg-white 
+        focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 transition 
+        ${readOnly ? 'text-gray-600 bg-gray-50' : 'hover:border-gray-400'}`}
     />
   );
 }
@@ -40,14 +40,16 @@ export function TextField(props) {
 }
 
 // 🔹 Text Area
-export function TextAreaField({ label, value, onChange, className = '', hint }) {
+export function TextAreaField({ label, value, onChange, className = '', hint, rows = 3 }) {
   return (
     <FieldWrap label={label} hint={hint} className={className}>
       <textarea
-        className="w-full rounded-lg border border-gray-300 px-3 py-2 bg-white min-h-[80px] 
-                   focus:ring-2 focus:ring-blue-300 focus:border-blue-500 transition"
+        className={`w-full rounded-lg border border-gray-300 px-3 py-2 text-sm bg-white 
+                   focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 transition
+                   hover:border-gray-400 resize-none`}
         value={value}
         onChange={(e) => onChange(e.target.value)}
+        rows={rows}
       />
     </FieldWrap>
   );
@@ -66,7 +68,9 @@ export function NumberField({ label, value, onChange, min, max, className = '', 
 export function ReadOnlyField({ label, value, hint, className = '' }) {
   return (
     <FieldWrap label={label} hint={hint} className={className}>
-      <BaseInput value={value} readOnly />
+      <div className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm bg-gray-50 text-gray-600">
+        {value || '-'}
+      </div>
     </FieldWrap>
   );
 }
@@ -74,10 +78,10 @@ export function ReadOnlyField({ label, value, hint, className = '' }) {
 // 🔹 Select (Quarter)
 export function QuarterSelect({ label = 'Triwulan', value, onChange, className }) {
   const options = [
-    { value: 'Q1', label: 'Q1 (Jan–Mar)' },
-    { value: 'Q2', label: 'Q2 (Apr–Jun)' },
-    { value: 'Q3', label: 'Q3 (Jul–Sep)' },
-    { value: 'Q4', label: 'Q4 (Okt–Des)' },
+    { value: 'Q1', label: 'Q1' },
+    { value: 'Q2', label: 'Q2' },
+    { value: 'Q3', label: 'Q3' },
+    { value: 'Q4', label: 'Q4' },
   ];
 
   return (
@@ -85,8 +89,8 @@ export function QuarterSelect({ label = 'Triwulan', value, onChange, className }
       <select
         value={value}
         onChange={(e) => onChange(e.target.value)}
-        className="w-full rounded-lg border border-gray-300 px-3 py-2 bg-white 
-                   focus:ring-2 focus:ring-blue-300 focus:border-blue-500 transition"
+        className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm bg-white 
+                   focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 transition"
       >
         {options.map((opt) => (
           <option key={opt.value} value={opt.value}>
@@ -107,26 +111,25 @@ export function YearInput({ label = 'Tahun', value, onChange, className }) {
   );
 }
 
-// 🔹 RiskField (2-layer style)
+// 🔹 RiskField (Minimalis)
 export function RiskField({ label, value, onChange, color = '#93D24D', textColor = '#111827', placeholder, className = '' }) {
   return (
-    <div className={`border-2 border-[#0f1a0f] rounded-2xl overflow-hidden shadow-inner ${className}`} style={{ background: '#E9F7E6' }}>
+    <div className={`border border-gray-300 rounded-lg overflow-hidden ${className}`}>
       {/* Header */}
-      <div className="flex items-center justify-center font-bold text-[16px] h-[44px] px-3 truncate" style={{ background: color, color: textColor }}>
+      <div 
+        className="flex items-center justify-center font-semibold text-xs h-7 px-2 truncate" 
+        style={{ background: color, color: textColor }}
+      >
         {label}
       </div>
 
-      {/* Divider */}
-      <div className="h-1 bg-[#0f1a0f]" />
-
       {/* Input */}
-      <div className="p-2">
+      <div className="p-1.5">
         <input
           value={value}
           onChange={(e) => onChange(e.target.value)}
           placeholder={placeholder}
-          className="w-full h-[44px] text-center font-semibold text-[16px] bg-[#E9F7E6] 
-                     border-none outline-none rounded-lg"
+          className="w-full text-center text-xs bg-white border-none outline-none rounded"
         />
       </div>
     </div>

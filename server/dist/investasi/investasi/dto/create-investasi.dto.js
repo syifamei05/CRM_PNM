@@ -12,8 +12,9 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.CreateInvestasiDto = void 0;
 const class_validator_1 = require("class-validator");
 class CreateInvestasiDto {
-    bobot;
+    no;
     parameter;
+    bobot;
     no_indikator;
     indikator;
     bobot_indikator;
@@ -26,25 +27,30 @@ class CreateInvestasiDto {
     high;
     hasil;
     peringkat;
+    keterangan;
     nama_pembilang;
     nama_penyebut;
-    nilai_pembilang;
-    nilai_penyebut;
+    total_pembilang;
+    total_penyebut;
     weighted;
-    keterangan;
     pereview_hasil;
 }
 exports.CreateInvestasiDto = CreateInvestasiDto;
 __decorate([
-    (0, class_validator_1.IsNumber)(),
+    (0, class_validator_1.IsString)(),
     (0, class_validator_1.IsNotEmpty)(),
-    __metadata("design:type", Number)
-], CreateInvestasiDto.prototype, "bobot", void 0);
+    __metadata("design:type", String)
+], CreateInvestasiDto.prototype, "no", void 0);
 __decorate([
     (0, class_validator_1.IsString)(),
     (0, class_validator_1.IsNotEmpty)(),
     __metadata("design:type", String)
 ], CreateInvestasiDto.prototype, "parameter", void 0);
+__decorate([
+    (0, class_validator_1.IsNumber)(),
+    (0, class_validator_1.IsNotEmpty)(),
+    __metadata("design:type", Number)
+], CreateInvestasiDto.prototype, "bobot", void 0);
 __decorate([
     (0, class_validator_1.IsNumber)(),
     (0, class_validator_1.IsNotEmpty)(),
@@ -109,6 +115,11 @@ __decorate([
     (0, class_validator_1.IsOptional)(),
     (0, class_validator_1.IsString)(),
     __metadata("design:type", String)
+], CreateInvestasiDto.prototype, "keterangan", void 0);
+__decorate([
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsString)(),
+    __metadata("design:type", String)
 ], CreateInvestasiDto.prototype, "nama_pembilang", void 0);
 __decorate([
     (0, class_validator_1.IsOptional)(),
@@ -119,22 +130,17 @@ __decorate([
     (0, class_validator_1.IsOptional)(),
     (0, class_validator_1.IsNumber)(),
     __metadata("design:type", Number)
-], CreateInvestasiDto.prototype, "nilai_pembilang", void 0);
+], CreateInvestasiDto.prototype, "total_pembilang", void 0);
 __decorate([
     (0, class_validator_1.IsOptional)(),
     (0, class_validator_1.IsNumber)(),
     __metadata("design:type", Number)
-], CreateInvestasiDto.prototype, "nilai_penyebut", void 0);
+], CreateInvestasiDto.prototype, "total_penyebut", void 0);
 __decorate([
     (0, class_validator_1.IsOptional)(),
     (0, class_validator_1.IsNumber)(),
     __metadata("design:type", Number)
 ], CreateInvestasiDto.prototype, "weighted", void 0);
-__decorate([
-    (0, class_validator_1.IsOptional)(),
-    (0, class_validator_1.IsString)(),
-    __metadata("design:type", String)
-], CreateInvestasiDto.prototype, "keterangan", void 0);
 __decorate([
     (0, class_validator_1.IsOptional)(),
     (0, class_validator_1.IsNumber)(),

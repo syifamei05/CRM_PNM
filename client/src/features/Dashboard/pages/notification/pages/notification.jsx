@@ -454,7 +454,6 @@ export default function NotificationPage() {
     try {
       console.log('🗑️ Deleting notification:', notificationId);
 
-      // Auto-remove dari selected notifications
       const newSelected = selectedNotifications.filter((id) => id !== notificationId);
       if (newSelected.length !== selectedNotifications.length) {
         setSelectedNotifications(newSelected);
@@ -568,7 +567,7 @@ export default function NotificationPage() {
 
   return (
     <div className={containerClass}>
-      <div className="w-full max-w-7xl mx-auto">
+      <div className="w-full mx-auto">
         {/* Sync Status Banner */}
         <AnimatePresence>
           {syncStatus === 'syncing' && (

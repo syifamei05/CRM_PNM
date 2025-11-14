@@ -187,12 +187,9 @@ export class NotificationService {
     }
   }
 
-  // ✅ FIX: Improved getAllNotifications
   static async getAllNotifications(userId: string, options?: { unreadOnly?: boolean; limit?: number; page?: number }): Promise<{ notifications: Notification[]; total: number }> {
     try {
       this.debugLog('getAllNotifications', { userId, options });
-
-      // Coba endpoint baru yang sudah include broadcast
       const params = new URLSearchParams();
       if (options?.unreadOnly) params.append('unreadOnly', 'true');
       if (options?.limit) params.append('limit', options.limit.toString());
@@ -224,8 +221,6 @@ export class NotificationService {
       return result;
     } catch (error) {
       this.errorLog('getAllNotifications new endpoint failed', error, { userId, options });
-
-      // ✅ FALLBACK: Gunakan approach lama jika endpoint baru tidak ada
       try {
         this.debugLog('Falling back to combined approach');
 
@@ -233,22 +228,18 @@ export class NotificationService {
 
         let userNotifsResult = { notifications: [] as Notification[], total: 0 };
         let broadcastNotifsResult = { notifications: [] as Notification[], total: 0 };
-
-        // Handle user notifications result
         if (userNotifications.status === 'fulfilled') {
           userNotifsResult = userNotifications.value;
         } else {
           this.errorLog('getAllNotifications - user failed', userNotifications.reason);
         }
 
-        // Handle broadcast notifications result
         if (broadcastNotifications.status === 'fulfilled') {
           broadcastNotifsResult = broadcastNotifications.value;
         } else {
           this.errorLog('getAllNotifications - broadcast failed', broadcastNotifications.reason);
         }
 
-        // Gabungkan dan sort by timestamp
         const allNotifications = [...userNotifsResult.notifications, ...broadcastNotifsResult.notifications].sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
 
         const result = {
@@ -267,7 +258,6 @@ export class NotificationService {
       } catch (fallbackError) {
         this.errorLog('Complete failure in getAllNotifications', fallbackError);
 
-        // Last resort: cuma user notifications
         try {
           const userNotifications = await this.getUserNotifications(userId, options);
           return userNotifications;
@@ -282,12 +272,11 @@ export class NotificationService {
     }
   }
 
-  // ✅ FIX: Improved createNotification dengan better payload handling
+
   static async createNotification(notificationData: CreateNotificationDto): Promise<BackendNotification> {
     try {
       this.debugLog('createNotification', notificationData);
 
-      // Bersihkan payload dari undefined values
       const cleanPayload: any = {
         userId: notificationData.userId,
         type: notificationData.type,
@@ -298,7 +287,6 @@ export class NotificationService {
         expires_at: notificationData.expiresAt?.toISOString() || null,
       };
 
-      // Remove undefined values
       Object.keys(cleanPayload).forEach((key) => {
         if (cleanPayload[key] === undefined) {
           delete cleanPayload[key];
@@ -323,7 +311,6 @@ export class NotificationService {
         userId: notificationData.userId,
       });
 
-      // Auto-sync untuk user yang terkait
       if (notificationData.userId) {
         setTimeout(() => {
           this.syncWithBackend(notificationData.userId!.toString())
@@ -331,7 +318,6 @@ export class NotificationService {
             .catch((err) => this.errorLog('Auto-sync failed', err));
         }, 500);
       } else {
-        // Untuk broadcast, sync broadcast notifications
         setTimeout(() => {
           this.syncBroadcastNotifications()
             .then(() => this.debugLog('Broadcast sync completed'))

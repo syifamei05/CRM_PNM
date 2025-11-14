@@ -1,10 +1,11 @@
+import { Repository } from 'typeorm';
+import { Investasi } from './entities/investasi.entity';
 import { CreateInvestasiDto } from './dto/create-investasi.dto';
 import { UpdateInvestasiDto } from './dto/update-investasi.dto';
-import { Investasi } from './entities/investasi.entity';
-import { Repository } from 'typeorm';
 export declare class InvestasiService {
     private readonly investRepository;
     constructor(investRepository: Repository<Investasi>);
+    private calculateWeighted;
     create(dto: CreateInvestasiDto): Promise<Investasi>;
     findAll(): Promise<Investasi[]>;
     findOne(id: number): Promise<Investasi>;

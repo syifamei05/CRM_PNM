@@ -29,8 +29,8 @@ class GetInvestDto {
     peringkat;
     nama_pembilang;
     nama_penyebut;
-    nilai_pembilang;
-    nilai_penyebut;
+    total_pembilang;
+    total_penyebut;
     weighted;
     keterangan;
     pereview_hasil;
@@ -38,7 +38,7 @@ class GetInvestDto {
 exports.GetInvestDto = GetInvestDto;
 __decorate([
     (0, class_transformer_1.Expose)(),
-    __metadata("design:type", Number)
+    __metadata("design:type", String)
 ], GetInvestDto.prototype, "No", void 0);
 __decorate([
     (0, class_transformer_1.Expose)(),
@@ -107,11 +107,11 @@ __decorate([
 __decorate([
     (0, class_transformer_1.Expose)(),
     __metadata("design:type", Number)
-], GetInvestDto.prototype, "nilai_pembilang", void 0);
+], GetInvestDto.prototype, "total_pembilang", void 0);
 __decorate([
     (0, class_transformer_1.Expose)(),
     __metadata("design:type", Number)
-], GetInvestDto.prototype, "nilai_penyebut", void 0);
+], GetInvestDto.prototype, "total_penyebut", void 0);
 __decorate([
     (0, class_transformer_1.Expose)(),
     __metadata("design:type", Number)

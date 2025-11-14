@@ -1,8 +1,10 @@
 export declare class Investasi {
-    id: number;
-    bobot: number;
+    id_investasi: number;
+    no: string;
+    no_parameter: string;
     parameter: string;
-    no_indikator: number;
+    bobot: number;
+    no_indikator: string;
     indikator: string;
     bobot_indikator: number;
     sumber_resiko: string;
@@ -14,11 +16,11 @@ export declare class Investasi {
     high: string;
     hasil: number;
     peringkat: number;
-    nama_pembilang: string;
-    nama_penyebut: string;
-    nilai_pembilang: number;
-    nilai_penyebut: number;
     weighted: number;
     keterangan: string;
+    total_pembilang: number;
+    total_penyebut: number;
+    nama_pembilang: string;
+    nama_penyebut: string;
     pereview_hasil: number;
 }

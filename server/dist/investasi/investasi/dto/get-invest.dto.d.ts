@@ -1,5 +1,5 @@
 export declare class GetInvestDto {
-    No: number;
+    No: string;
     bobot: number;
     parameter: string;
     no_indikator: number;
@@ -16,8 +16,8 @@ export declare class GetInvestDto {
     peringkat?: number;
     nama_pembilang?: string;
     nama_penyebut?: string;
-    nilai_pembilang?: number;
-    nilai_penyebut?: number;
+    total_pembilang?: number;
+    total_penyebut?: number;
     weighted?: number;
     keterangan?: string;
     pereview_hasil?: number;

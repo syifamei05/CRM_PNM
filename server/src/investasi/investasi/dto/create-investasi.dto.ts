@@ -1,13 +1,17 @@
 import { IsNotEmpty, IsNumber, IsOptional, IsString } from 'class-validator';
 
 export class CreateInvestasiDto {
-  @IsNumber()
+  @IsString()
   @IsNotEmpty()
-  bobot: number;
+  no: string;
 
   @IsString()
   @IsNotEmpty()
   parameter: string;
+
+  @IsNumber()
+  @IsNotEmpty()
+  bobot: number;
 
   @IsNumber()
   @IsNotEmpty()
@@ -59,6 +63,10 @@ export class CreateInvestasiDto {
 
   @IsOptional()
   @IsString()
+  keterangan: string;
+
+  @IsOptional()
+  @IsString()
   nama_pembilang?: string;
 
   @IsOptional()
@@ -67,19 +75,15 @@ export class CreateInvestasiDto {
 
   @IsOptional()
   @IsNumber()
-  nilai_pembilang?: number;
+  total_pembilang?: number;
 
   @IsOptional()
   @IsNumber()
-  nilai_penyebut?: number;
+  total_penyebut?: number;
 
   @IsOptional()
   @IsNumber()
   weighted?: number;
-
-  @IsOptional()
-  @IsString()
-  keterangan?: string;
 
   @IsOptional()
   @IsNumber()

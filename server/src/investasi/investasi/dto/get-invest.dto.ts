@@ -2,7 +2,7 @@ import { Expose } from 'class-transformer';
 
 export class GetInvestDto {
   @Expose()
-  No: number;
+  No: string;
 
   @Expose()
   bobot: number;
@@ -53,10 +53,10 @@ export class GetInvestDto {
   nama_penyebut?: string;
 
   @Expose()
-  nilai_pembilang?: number;
+  total_pembilang?: number;
 
   @Expose()
-  nilai_penyebut?: number;
+  total_penyebut?: number;
 
   @Expose()
   weighted?: number;

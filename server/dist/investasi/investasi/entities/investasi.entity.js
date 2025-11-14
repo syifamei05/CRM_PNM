@@ -12,9 +12,11 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.Investasi = void 0;
 const typeorm_1 = require("typeorm");
 let Investasi = class Investasi {
-    id;
-    bobot;
+    id_investasi;
+    no;
+    no_parameter;
     parameter;
+    bobot;
     no_indikator;
     indikator;
     bobot_indikator;
@@ -27,91 +29,83 @@ let Investasi = class Investasi {
     high;
     hasil;
     peringkat;
-    nama_pembilang;
-    nama_penyebut;
-    nilai_pembilang;
-    nilai_penyebut;
     weighted;
     keterangan;
+    total_pembilang;
+    total_penyebut;
+    nama_pembilang;
+    nama_penyebut;
     pereview_hasil;
 };
 exports.Investasi = Investasi;
 __decorate([
     (0, typeorm_1.PrimaryGeneratedColumn)(),
     __metadata("design:type", Number)
-], Investasi.prototype, "id", void 0);
+], Investasi.prototype, "id_investasi", void 0);
 __decorate([
-    (0, typeorm_1.Column)({ type: 'int', nullable: false }),
-    __metadata("design:type", Number)
-], Investasi.prototype, "bobot", void 0);
+    (0, typeorm_1.Column)({ type: 'varchar', nullable: true }),
+    __metadata("design:type", String)
+], Investasi.prototype, "no", void 0);
 __decorate([
-    (0, typeorm_1.Column)({ type: 'text', nullable: false }),
+    (0, typeorm_1.Column)({ type: 'varchar', length: 100, nullable: true }),
+    __metadata("design:type", String)
+], Investasi.prototype, "no_parameter", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ type: 'varchar', length: 255, nullable: true }),
     __metadata("design:type", String)
 ], Investasi.prototype, "parameter", void 0);
 __decorate([
-    (0, typeorm_1.Column)({ type: 'int', nullable: false }),
+    (0, typeorm_1.Column)({ type: 'float', nullable: true }),
     __metadata("design:type", Number)
+], Investasi.prototype, "bobot", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ type: 'varchar', length: 50, nullable: true }),
+    __metadata("design:type", String)
 ], Investasi.prototype, "no_indikator", void 0);
 __decorate([
-    (0, typeorm_1.Column)({ type: 'text', nullable: false }),
+    (0, typeorm_1.Column)({ type: 'text', nullable: true }),
     __metadata("design:type", String)
 ], Investasi.prototype, "indikator", void 0);
 __decorate([
-    (0, typeorm_1.Column)({ type: 'int', nullable: false }),
+    (0, typeorm_1.Column)({ type: 'float', nullable: true }),
     __metadata("design:type", Number)
 ], Investasi.prototype, "bobot_indikator", void 0);
 __decorate([
-    (0, typeorm_1.Column)({ type: 'text', nullable: false }),
+    (0, typeorm_1.Column)({ type: 'text', nullable: true }),
     __metadata("design:type", String)
 ], Investasi.prototype, "sumber_resiko", void 0);
 __decorate([
-    (0, typeorm_1.Column)({ type: 'text', nullable: false }),
+    (0, typeorm_1.Column)({ type: 'text', nullable: true }),
     __metadata("design:type", String)
 ], Investasi.prototype, "dampak", void 0);
 __decorate([
-    (0, typeorm_1.Column)({ type: 'varchar', length: 255, nullable: false }),
+    (0, typeorm_1.Column)({ type: 'varchar', length: 50, nullable: true }),
     __metadata("design:type", String)
 ], Investasi.prototype, "low", void 0);
 __decorate([
-    (0, typeorm_1.Column)({ type: 'varchar', length: 255, nullable: false }),
+    (0, typeorm_1.Column)({ type: 'varchar', length: 50, nullable: true }),
     __metadata("design:type", String)
 ], Investasi.prototype, "low_to_moderate", void 0);
 __decorate([
-    (0, typeorm_1.Column)({ type: 'varchar', length: 255, nullable: false }),
+    (0, typeorm_1.Column)({ type: 'varchar', length: 50, nullable: true }),
     __metadata("design:type", String)
 ], Investasi.prototype, "moderate", void 0);
 __decorate([
-    (0, typeorm_1.Column)({ type: 'varchar', length: 255, nullable: false }),
+    (0, typeorm_1.Column)({ type: 'varchar', length: 50, nullable: true }),
     __metadata("design:type", String)
 ], Investasi.prototype, "moderate_to_high", void 0);
 __decorate([
-    (0, typeorm_1.Column)({ type: 'varchar', length: 255, nullable: false }),
+    (0, typeorm_1.Column)({ type: 'varchar', length: 50, nullable: true }),
     __metadata("design:type", String)
 ], Investasi.prototype, "high", void 0);
 __decorate([
-    (0, typeorm_1.Column)({ type: 'float', nullable: false }),
+    (0, typeorm_1.Column)({ type: 'float', nullable: true }),
     __metadata("design:type", Number)
 ], Investasi.prototype, "hasil", void 0);
 __decorate([
     (0, typeorm_1.Column)({ type: 'int', nullable: true }),
     __metadata("design:type", Number)
 ], Investasi.prototype, "peringkat", void 0);
-__decorate([
-    (0, typeorm_1.Column)({ type: 'varchar', length: 255, nullable: true }),
-    __metadata("design:type", String)
-], Investasi.prototype, "nama_pembilang", void 0);
-__decorate([
-    (0, typeorm_1.Column)({ type: 'varchar', length: 255, nullable: true }),
-    __metadata("design:type", String)
-], Investasi.prototype, "nama_penyebut", void 0);
-__decorate([
-    (0, typeorm_1.Column)({ type: 'float', nullable: true }),
-    __metadata("design:type", Number)
-], Investasi.prototype, "nilai_pembilang", void 0);
-__decorate([
-    (0, typeorm_1.Column)({ type: 'float', nullable: true }),
-    __metadata("design:type", Number)
-], Investasi.prototype, "nilai_penyebut", void 0);
 __decorate([
     (0, typeorm_1.Column)({ type: 'float', nullable: true }),
     __metadata("design:type", Number)
@@ -120,6 +114,22 @@ __decorate([
     (0, typeorm_1.Column)({ type: 'text', nullable: true }),
     __metadata("design:type", String)
 ], Investasi.prototype, "keterangan", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ type: 'float', nullable: true }),
+    __metadata("design:type", Number)
+], Investasi.prototype, "total_pembilang", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ type: 'float', nullable: true }),
+    __metadata("design:type", Number)
+], Investasi.prototype, "total_penyebut", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ type: 'varchar', length: 255, nullable: true }),
+    __metadata("design:type", String)
+], Investasi.prototype, "nama_pembilang", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ type: 'varchar', length: 255, nullable: true }),
+    __metadata("design:type", String)
+], Investasi.prototype, "nama_penyebut", void 0);
 __decorate([
     (0, typeorm_1.Column)({ type: 'int', nullable: true }),
     __metadata("design:type", Number)

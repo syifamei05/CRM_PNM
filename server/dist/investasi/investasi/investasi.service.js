@@ -15,35 +15,52 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.InvestasiService = void 0;
 const common_1 = require("@nestjs/common");
 const typeorm_1 = require("@nestjs/typeorm");
-const investasi_entity_1 = require("./entities/investasi.entity");
 const typeorm_2 = require("typeorm");
+const investasi_entity_1 = require("./entities/investasi.entity");
 let InvestasiService = class InvestasiService {
     investRepository;
     constructor(investRepository) {
         this.investRepository = investRepository;
     }
+    calculateWeighted(hasil, bobotIndikator, bobot) {
+        return (hasil ?? 0) * (bobotIndikator ?? 0) * (bobot ?? 0);
+    }
     async create(dto) {
-        const weighted = dto.hasil * dto.bobot_indikator * dto.bobot;
+        const weighted = this.calculateWeighted(dto.hasil, dto.bobot_indikator, dto.bobot);
         const entity = this.investRepository.create({
             ...dto,
-            weighted,
+            no: String(dto.no),
+            no_indikator: String(dto.no_indikator),
         });
+        entity.weighted = weighted;
         return this.investRepository.save(entity);
     }
     async findAll() {
         return this.investRepository.find({
-            order: { id: 'ASC' },
+            order: { id_investasi: 'ASC' },
         });
     }
     async findOne(id) {
-        const data = await this.investRepository.findOne({ where: { id } });
+        const data = await this.investRepository.findOne({
+            where: { id_investasi: id },
+        });
         if (!data)
             throw new common_1.NotFoundException(`Investasi ID ${id} tidak ditemukan`);
         return data;
     }
     async update(id, dto) {
         const data = await this.findOne(id);
-        Object.assign(data, dto);
+        Object.assign(data, {
+            ...dto,
+            no_indikator: dto.no_indikator !== undefined
+                ? String(dto.no_indikator)
+                : data.no_indikator,
+        });
+        if (dto.hasil !== undefined ||
+            dto.bobot_indikator !== undefined ||
+            dto.bobot !== undefined) {
+            data.weighted = this.calculateWeighted(dto.hasil ?? data.hasil, dto.bobot_indikator ?? data.bobot_indikator, dto.bobot ?? data.bobot);
+        }
         return this.investRepository.save(data);
     }
     async remove(id) {
@@ -52,18 +69,17 @@ let InvestasiService = class InvestasiService {
         return { message: `Investasi ID ${id} berhasil dihapus` };
     }
     async getInvestDataField() {
-        return this.investRepository
-            .createQueryBuilder('i')
-            .select([
-            'i.id',
-            'i.parameter',
-            'i.indikator',
-            'i.hasil',
-            'i.peringkat',
-            'i.weighted',
-        ])
-            .orderBy('i.id', 'ASC')
-            .getMany();
+        return this.investRepository.find({
+            select: [
+                'id_investasi',
+                'parameter',
+                'indikator',
+                'hasil',
+                'peringkat',
+                'weighted',
+            ],
+            order: { id_investasi: 'ASC' },
+        });
     }
 };
 exports.InvestasiService = InvestasiService;

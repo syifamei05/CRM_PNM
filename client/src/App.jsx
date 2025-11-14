@@ -25,8 +25,9 @@ import Settings from './features/Dashboard/pages/RiskProfile/setting/setting.jsx
 import ProfilePage from './features/Dashboard/pages/profile/pages/userprofile.jsx';
 import NotificationPage from './features/Dashboard/pages/notification/pages/notification.jsx';
 import { useAuth } from './features/auth/hooks/useAuth.hook.js';
+import { AuditLog } from './features/Dashboard/pages/audit-log/pages/audit-log-page.jsx';
 function App() {
-  const { user, loading } = useAuth(); // Tambahkan ini
+  const { user, loading } = useAuth();
 
   if (loading) {
     return (
@@ -44,7 +45,6 @@ function App() {
 
       <div className="min-h-screen transition-colors">
         <Routes>
-          {/* Public Pages - hanya bisa diakses jika belum login */}
           <Route
             path="/login"
             element={
@@ -70,7 +70,6 @@ function App() {
             }
           />
 
-          {/* Protected Pages - hanya bisa diakses jika sudah login */}
           <Route
             path="/dashboard/*"
             element={
@@ -92,6 +91,7 @@ function App() {
             <Route path="profile" element={<ProfilePage />} />
             <Route path="report" element={<Report />} />
             <Route path="notification" element={<NotificationPage />} />
+            <Route path='audit-log' element={<AuditLog />} />
             <Route path="settings" element={<Settings />} />
           </Route>
 

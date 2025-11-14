@@ -1,9 +1,9 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
+import { InjectRepository } from '@nestjs/typeorm';
+import { Repository } from 'typeorm';
+import { Investasi } from './entities/investasi.entity';
 import { CreateInvestasiDto } from './dto/create-investasi.dto';
 import { UpdateInvestasiDto } from './dto/update-investasi.dto';
-import { InjectRepository } from '@nestjs/typeorm';
-import { Investasi } from './entities/investasi.entity';
-import { Repository } from 'typeorm';
 
 @Injectable()
 export class InvestasiService {
@@ -12,25 +12,42 @@ export class InvestasiService {
     private readonly investRepository: Repository<Investasi>,
   ) {}
 
+  private calculateWeighted(
+    hasil?: number,
+    bobotIndikator?: number,
+    bobot?: number,
+  ): number {
+    return (hasil ?? 0) * (bobotIndikator ?? 0) * (bobot ?? 0);
+  }
+
   async create(dto: CreateInvestasiDto): Promise<Investasi> {
-    const weighted = dto.hasil * dto.bobot_indikator * dto.bobot;
+    const weighted = this.calculateWeighted(
+      dto.hasil,
+      dto.bobot_indikator,
+      dto.bobot,
+    );
 
     const entity = this.investRepository.create({
       ...dto,
-      weighted,
+      no: String(dto.no),
+      no_indikator: String(dto.no_indikator),
     });
+
+    entity.weighted = weighted;
 
     return this.investRepository.save(entity);
   }
 
   async findAll(): Promise<Investasi[]> {
     return this.investRepository.find({
-      order: { id: 'ASC' },
+      order: { id_investasi: 'ASC' },
     });
   }
 
   async findOne(id: number): Promise<Investasi> {
-    const data = await this.investRepository.findOne({ where: { id } });
+    const data = await this.investRepository.findOne({
+      where: { id_investasi: id },
+    });
     if (!data)
       throw new NotFoundException(`Investasi ID ${id} tidak ditemukan`);
     return data;
@@ -38,7 +55,27 @@ export class InvestasiService {
 
   async update(id: number, dto: UpdateInvestasiDto): Promise<Investasi> {
     const data = await this.findOne(id);
-    Object.assign(data, dto);
+
+    Object.assign(data, {
+      ...dto,
+      no_indikator:
+        dto.no_indikator !== undefined
+          ? String(dto.no_indikator)
+          : data.no_indikator,
+    });
+
+    if (
+      dto.hasil !== undefined ||
+      dto.bobot_indikator !== undefined ||
+      dto.bobot !== undefined
+    ) {
+      data.weighted = this.calculateWeighted(
+        dto.hasil ?? data.hasil,
+        dto.bobot_indikator ?? data.bobot_indikator,
+        dto.bobot ?? data.bobot,
+      );
+    }
+
     return this.investRepository.save(data);
   }
 
@@ -49,17 +86,16 @@ export class InvestasiService {
   }
 
   async getInvestDataField(): Promise<Partial<Investasi>[]> {
-    return this.investRepository
-      .createQueryBuilder('i')
-      .select([
-        'i.id',
-        'i.parameter',
-        'i.indikator',
-        'i.hasil',
-        'i.peringkat',
-        'i.weighted',
-      ])
-      .orderBy('i.id', 'ASC')
-      .getMany();
+    return this.investRepository.find({
+      select: [
+        'id_investasi',
+        'parameter',
+        'indikator',
+        'hasil',
+        'peringkat',
+        'weighted',
+      ],
+      order: { id_investasi: 'ASC' },
+    });
   }
 }

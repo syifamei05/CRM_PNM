@@ -566,8 +566,6 @@ const groupByAspek = (rows) => {
   });
 };
 
-
-
 // ============================================================================
 // COMPONENTS
 // ============================================================================
@@ -594,7 +592,7 @@ const TextAreaField = ({ label, value, onChange, placeholder, className = '' }) 
       onChange={(e) => onChange(e.target.value)}
       placeholder={placeholder}
       rows={3}
-      className="w-full rounded-xl border border-gray-300 px-4 py-3 bg-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200 resize-none"
+      className="w-full rounded-xl border border-gray-300 px-2 py-2 bg-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200 resize-none"
     />
   </div>
 );
@@ -673,9 +671,8 @@ const ErrorAlert = ({ message, onDismiss }) => (
   </div>
 );
 
-// Header Component
 const Header = ({ viewYear, viewQuarter, query, onYearChange, onQuarterChange, onQueryChange, onExport }) => (
-  <header className="bg-gradient-to-r from-blue-600 to-indigo-700 rounded-2xl shadow-lg text-white p-6">
+  <header className="bg-gradient-to-r from-blue-600 to-indigo-700 rounded-2xl shadow-lg text-white ">
     <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-4">
       <div className="flex items-center gap-3">
         <div className="p-2 bg-white/20 rounded-xl">
@@ -714,7 +711,6 @@ const Header = ({ viewYear, viewQuarter, query, onYearChange, onQuarterChange, o
   </header>
 );
 
-// Form Component
 const KPMRForm = ({ form, onFormChange, onSubmit, filtered }) => {
   const skorAverage = useMemo(() => {
     const sameAspek = filtered.filter((r) => r.aspekNo === form.aspekNo && r.aspekTitle === form.aspekTitle);
@@ -745,7 +741,6 @@ const KPMRForm = ({ form, onFormChange, onSubmit, filtered }) => {
 
       <div className="p-6">
         <div className="grid grid-cols-1 xl:grid-cols-2 gap-8">
-          {/* Left Side - Meta Aspek & Section */}
           <div className="space-y-6">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <TextField label="Aspek (No)" value={form.aspekNo} onChange={(value) => onFormChange('aspekNo', value)} placeholder="Masukkan nomor aspek" />
@@ -994,7 +989,7 @@ export default function KPMR() {
       },
     ];
   }, [data]);
-// indikator
+  // indikator
   const handleFormChange = (key, value) => {
     setForm((prev) => ({
       ...prev,
@@ -1064,16 +1059,13 @@ export default function KPMR() {
     }
   };
 
-  // 🔥 EDIT
   const handleEdit = (row) => {
     setForm({ ...row });
     setEditingId(row.id_kpmr_investasi || null);
     setLocalError(null);
-    // Scroll to form
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
-  // 🔥 DELETE
   const handleDelete = async (row) => {
     if (!row.id_kpmr_investasi) return;
 
@@ -1081,8 +1073,6 @@ export default function KPMR() {
       try {
         setLocalError(null);
         await deleteKpmr(row.id_kpmr_investasi);
-
-        // Reset form jika sedang edit data yang dihapus
         if (editingId === row.id_kpmr_investasi) {
           resetForm();
         }
@@ -1096,7 +1086,6 @@ export default function KPMR() {
     alert(`Export functionality for ${viewYear}-${viewQuarter} akan diimplementasikan`);
   };
 
-  // Calculate average for current form aspek
   const skorAverage = useMemo(() => {
     const sameAspek = filtered.filter((r) => r.aspekNo === form.aspekNo && r.aspekTitle === form.aspekTitle);
     const scores = sameAspek.map((r) => r.sectionSkor);
@@ -1104,8 +1093,7 @@ export default function KPMR() {
   }, [filtered, form.aspekNo, form.aspekTitle]);
 
   return (
-    <div className="space-y-6 max-w-full overflow-hidden p-6 bg-gray-50 min-h-screen">
-      {/* Header */}
+    <div className="space-y-6 w-full min-h-screen">
       <header className="bg-gradient-to-r from-blue-600 to-indigo-700 rounded-2xl shadow-lg text-white p-6">
         <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-4">
           <div className="flex items-center gap-3">
@@ -1148,10 +1136,8 @@ export default function KPMR() {
         </div>
       </header>
 
-      {/* Error Alert */}
       {(error || localError) && <ErrorAlert message={error || localError} onDismiss={() => setLocalError(null)} />}
 
-      {/* Form */}
       <section className="bg-white rounded-2xl shadow-lg border border-gray-100 overflow-hidden">
         <div className="bg-gradient-to-r from-gray-50 to-blue-50 px-6 py-4 border-b">
           <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
@@ -1183,7 +1169,6 @@ export default function KPMR() {
 
         <div className="p-6">
           <div className="grid grid-cols-1 xl:grid-cols-2 gap-8">
-            {/* Left Side */}
             <div className="space-y-6">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <TextField label="Aspek (No)" value={form.aspekNo} onChange={(value) => handleFormChange('aspekNo', value)} placeholder="Masukkan nomor aspek" />
@@ -1220,7 +1205,6 @@ export default function KPMR() {
               <TextAreaField label="Evidence" value={form.evidence} onChange={(value) => handleFormChange('evidence', value)} placeholder="Masukkan evidence yang diperlukan" />
             </div>
 
-            {/* Right Side - Levels */}
             <div className="space-y-4">
               {LEVEL_CONFIG.map((config) => (
                 <LevelCard key={config.level} config={config} value={form[config.key]} onChange={(value) => handleFormChange(config.key, value)} />
@@ -1250,7 +1234,6 @@ export default function KPMR() {
         </div>
       </section>
 
-      {/* Table */}
       <section className="bg-white rounded-2xl shadow-lg border border-gray-100 overflow-hidden">
         <div className="bg-gradient-to-r from-gray-50 to-blue-50 px-6 py-4 border-b">
           <div className="flex items-center justify-between">
@@ -1277,48 +1260,49 @@ export default function KPMR() {
             <table className="w-full text-sm min-w-full">
               <thead>
                 <tr className="bg-gradient-to-r from-blue-600 to-indigo-700 text-white">
-                  <th className="border border-blue-500 px-4 py-3 text-left font-semibold text-sm" colSpan={2}>
+                  <th className="border border-blue-500 px-2 py-3 text-left font-semibold text-sm" colSpan={2}>
                     KUALITAS PENERAPAN MANAJEMEN RISIKO
                   </th>
                   <th className="border border-blue-500 px-4 py-3 text-center font-semibold text-sm w-20" rowSpan={2}>
                     Skor
                   </th>
                   <th className="border border-blue-500 px-4 py-3 text-center font-semibold text-sm w-32" rowSpan={2}>
-                    1 (Strong)
+                    Strong
                   </th>
                   <th className="border border-blue-500 px-4 py-3 text-center font-semibold text-sm w-32" rowSpan={2}>
-                    2 (Satisfactory)
+                    Satisfactory
                   </th>
                   <th className="border border-blue-500 px-4 py-3 text-center font-semibold text-sm w-32" rowSpan={2}>
-                    3 (Fair)
+                    Fair
                   </th>
                   <th className="border border-blue-500 px-4 py-3 text-center font-semibold text-sm w-32" rowSpan={2}>
-                    4 (Marginal)
+                    Marginal
                   </th>
                   <th className="border border-blue-500 px-4 py-3 text-center font-semibold text-sm w-36" rowSpan={2}>
-                    5 (Unsatisfactory)
+                    Unsatisfactory
                   </th>
                   <th className="border border-blue-500 px-4 py-3 text-center font-semibold text-sm w-48" rowSpan={2}>
                     Evidence
                   </th>
+                  <th className="border border-blue-500 px-4 py-3 text-center font-semibold text-sm w-32" rowSpan={2}>
+                    Action
+                  </th>
                 </tr>
                 <tr className="bg-gradient-to-r from-blue-600 to-indigo-700 text-white">
                   <th className="border border-blue-500 px-4 py-3 text-center font-semibold text-sm w-16">No</th>
-                  <th className="border border-blue-500 px-4 py-3 text-center font-semibold text-sm">Pertanyaan / Indikator</th>
+                  <th className="border border-blue-500 px-20 py-2 text-center w-64 font-semibold text-sm">Pertanyaan / Indikator</th>
                 </tr>
               </thead>
 
               <tbody>
                 {(groups ?? []).map((group, idx) => (
                   <React.Fragment key={idx}>
-                    {/* Header Aspek */}
                     <tr className="bg-blue-50 font-semibold text-gray-700">
                       <td colSpan={10} className="border border-gray-200 px-4 py-2 text-left">
                         {group.aspekNo}. {group.aspekTitle} — <span className="text-blue-600">Bobot: {group.aspekBobot}%</span>
                       </td>
                     </tr>
 
-                    {/* Baris Section */}
                     {(group.rows ?? []).map((row, i) => (
                       <tr key={row.id_kpmr_investasi || i} className="hover:bg-blue-50 transition-colors">
                         <td className="border border-gray-200 px-4 py-2 text-center text-sm text-gray-700 w-16">{row.sectionNo}</td>
@@ -1331,20 +1315,18 @@ export default function KPMR() {
                         <td className="border border-gray-200 px-4 py-2 text-sm">{row.unsatisfactory || '-'}</td>
                         <td className="border border-gray-200 px-4 py-2 text-sm">{row.evidence || '-'}</td>
 
-                        {/* 🔹 Aksi (Edit / Hapus) */}
-                        <td className="border border-gray-200 px-4 py-2 text-center space-x-2">
-                          <button onClick={() => handleEdit(row)} className="inline-flex items-center px-3 py-1.5 text-sm font-medium rounded-lg bg-blue-100 text-blue-700 hover:bg-blue-200 transition">
-                            ✏️ Edit
+                        <td className="border border-gray-200 px-4 py-4 text-left space-x-2">
+                          <button onClick={() => handleEdit(row)} className="inline-flex mb-2 items-center px-3 py-1 text-sm font-medium rounded-md bg-blue-100 text-blue-700 hover:bg-blue-200 transition">
+                            Edit
                           </button>
 
-                          <button onClick={() => handleDelete(row)} className="inline-flex items-center px-3 py-1.5 text-sm font-medium rounded-lg bg-red-100 text-red-700 hover:bg-red-200 transition">
-                            🗑️ Hapus
+                          <button onClick={() => handleDelete(row)} className="inline-flex items-center px-3 py-1 text-sm font-medium rounded-md bg-red-100 text-red-700 hover:bg-red-200 transition">
+                            Hapus
                           </button>
                         </td>
                       </tr>
                     ))}
 
-                    {/* Rata-rata Aspek */}
                     <tr className="bg-gray-50 font-semibold text-gray-700">
                       <td colSpan={2} className="border border-gray-200 px-4 py-2 text-right">
                         Rata-rata Aspek

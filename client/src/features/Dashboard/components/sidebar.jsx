@@ -100,7 +100,6 @@ const Sidebar = () => {
 
   const divisionOptionClass = `flex items-center gap-3 w-full p-3 rounded-lg transition-all duration-200 cursor-pointer group ${darkMode ? 'hover:bg-gray-600 hover:text-white' : 'hover:bg-blue-50 hover:text-blue-700'}`;
 
-  // CSS untuk scrollbar minimalis
   const scrollbarClass = `
     /* Scrollbar untuk Webkit browsers (Chrome, Safari, Edge) */
     .sidebar-scrollbar::-webkit-scrollbar {
@@ -143,7 +142,7 @@ const Sidebar = () => {
       <style>{scrollbarClass}</style>
 
       <div className={sidebarClass}>
-        <div className="flex justify-center mb-8 flex-shrink-0">
+        <div className="flex justify-center mb-8 mt-[25px] flex-shrink-0">
           <img src={logo} alt="PNM" className="w-40 h-auto transition-all duration-300 hover:scale-105" />
         </div>
 
@@ -242,11 +241,14 @@ const Sidebar = () => {
 
                 <div className={dividerClass} />
 
-                <Link to="/dashboard/settings" className={navItemClass(isActive('/dashboard/settings', true))}>
-                  Settings
-                </Link>
                 <Link to="/dashboard/notification" className={navItemClass(isActive('/dashboard/notification', true))}>
                   Notification
+                </Link>
+                <Link to="/dashboard/audit-log" className={navItemClass(isActive('/dashboard/audit-log', true))}>
+                  Audit Log
+                </Link>
+                <Link to="/dashboard/settings" className={navItemClass(isActive('/dashboard/settings', true))}>
+                  Settings
                 </Link>
               </div>
             </nav>

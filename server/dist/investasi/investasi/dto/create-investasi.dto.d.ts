@@ -1,6 +1,7 @@
 export declare class CreateInvestasiDto {
-    bobot: number;
+    no: string;
     parameter: string;
+    bobot: number;
     no_indikator: number;
     indikator: string;
     bobot_indikator: number;
@@ -13,11 +14,11 @@ export declare class CreateInvestasiDto {
     high: string;
     hasil: number;
     peringkat?: number;
+    keterangan: string;
     nama_pembilang?: string;
     nama_penyebut?: string;
-    nilai_pembilang?: number;
-    nilai_penyebut?: number;
+    total_pembilang?: number;
+    total_penyebut?: number;
     weighted?: number;
-    keterangan?: string;
     pereview_hasil?: number;
 }
