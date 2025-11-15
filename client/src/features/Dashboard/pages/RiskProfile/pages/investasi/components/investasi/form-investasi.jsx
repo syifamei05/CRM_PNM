@@ -1,6 +1,7 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useState } from 'react';
 import { computeWeighted } from '../../utils/investasi/calc';
-
+import { useAuditLog } from '../../../../../audit-log/hooks/audit-log.hooks';
+import { useAuditLogContext } from '../../../../../audit-log/context/audit-log-context';
 const FALLBACK_FORM = {
   year: new Date().getFullYear(),
   quarter: 'Q1',
@@ -29,7 +30,7 @@ const FALLBACK_FORM = {
 
 export default function FormSection({ form: incomingForm, setForm = () => {}, onAdd = () => {}, onSave = () => {}, onReset = () => {}, editing = false, title = 'Form Investasi', loading = false }) {
   const form = { ...FALLBACK_FORM, ...(incomingForm || {}) };
-
+  const [submitting, setSubmitting] = useState(false);
   const autoWeighted = useMemo(() => computeWeighted(Number(form.bobotSection || 0), Number(form.bobotIndikator || 0), Number(form.peringkat || 0)) || '', [form.bobotSection, form.bobotIndikator, form.peringkat]);
 
   const previewHasilPercent = useMemo(() => {
@@ -39,6 +40,8 @@ export default function FormSection({ form: incomingForm, setForm = () => {}, on
     return (r * 100).toFixed(2) + '%';
   }, [form.numeratorValue, form.denominatorValue]);
 
+  const { logCreate, logUpdate } = useAuditLogContext();
+
   const handleChange = (k, v) => setForm((prev) => ({ ...(prev || FALLBACK_FORM), [k]: v }));
 
   const convertToServiceFormat = (formData) => {
@@ -46,7 +49,6 @@ export default function FormSection({ form: incomingForm, setForm = () => {}, on
     const den = Number(formData.denominatorValue || 0);
     const hasil = den ? (num / den) * 100 : 0;
 
-    
     const no_indikator = formData.subNo?.trim() || '1.1.1';
 
     return {
@@ -75,7 +77,7 @@ export default function FormSection({ form: incomingForm, setForm = () => {}, on
     };
   };
 
-  const handleAdd = () => {
+  const handleAdd = async () => {
     const validationErrors = [];
 
     if (!form.sectionLabel?.trim()) {
@@ -91,7 +93,6 @@ export default function FormSection({ form: incomingForm, setForm = () => {}, on
       validationErrors.push('Sub Nomor harus diisi');
     } else {
       const hierarchicalRegex = /^\d+(\.\d+)*$/;
-
       if (!hierarchicalRegex.test(form.subNo)) {
         validationErrors.push('Sub Nomor harus dalam format hierarchical seperti 1.1, 1.2.1, 2.3.4');
       }
@@ -102,14 +103,91 @@ export default function FormSection({ form: incomingForm, setForm = () => {}, on
       return;
     }
 
-    const serviceData = convertToServiceFormat(form);
-    onAdd(serviceData);
+    setSubmitting(true);
+
+    try {
+      const serviceData = convertToServiceFormat(form);
+      const result = await onAdd(serviceData);
+
+      // Log aktivitas CREATE setelah berhasil
+      if (logCreate && typeof logCreate === 'function') {
+        await logCreate('INVESTASI', `Menambahkan data investasi baru - Parameter: "${form.sectionLabel}", Indikator: "${form.indikator}", Sub No: ${form.subNo}`, {
+          endpoint: '/api/investments',
+          isSuccess: true,
+          metadata: {
+            no_indikator: form.subNo,
+            parameter: form.sectionLabel,
+            indikator: form.indikator,
+            investment_data: serviceData,
+          },
+        });
+        console.log('Audit log created successfully');
+      }
+
+      // Reset form
+      onReset();
+      alert('Data investasi berhasil ditambahkan!');
+    } catch (error) {
+      console.error('Error adding investment:', error);
+
+      // Log jika gagal
+      if (logCreate && typeof logCreate === 'function') {
+        await logCreate('INVESTASI', `Gagal menambahkan data investasi - Parameter: "${form.sectionLabel}", Indikator: "${form.indikator}"`, {
+          endpoint: '/api/investments',
+          isSuccess: false,
+          metadata: {
+            error: error.message,
+            error_details: error.response?.data || error.toString(),
+          },
+        });
+      }
+
+      alert('Gagal menambahkan data investasi: ' + (error.message || 'Terjadi kesalahan'));
+    } finally {
+      setSubmitting(false);
+    }
   };
 
-  const handleSave = () => {
-    const serviceData = convertToServiceFormat(form);
-    console.log('Saving data - no_indikator:', serviceData.no_indikator, 'type:', typeof serviceData.no_indikator);
-    onSave(serviceData);
+  const handleSave = async () => {
+    setSubmitting(true);
+
+    try {
+      const serviceData = convertToServiceFormat(form);
+      console.log('Saving data - no_indikator:', serviceData.no_indikator, 'type:', typeof serviceData.no_indikator);
+
+      const result = await onSave(serviceData);
+
+      // Log aktivitas UPDATE setelah berhasil
+      if (logUpdate && typeof logUpdate === 'function') {
+        await logUpdate('INVESTASI', `Memperbarui data investasi - Parameter: "${form.sectionLabel}", Indikator: "${form.indikator}", Sub No: ${form.subNo}`, {
+          endpoint: `/api/investments/${form.id || serviceData.no_indikator}`,
+          isSuccess: true,
+          metadata: {
+            no_indikator: form.subNo,
+            parameter: form.sectionLabel,
+            indikator: form.indikator,
+          },
+        });
+      }
+
+      alert('Data investasi berhasil diperbarui!');
+    } catch (error) {
+      console.error('Error saving investment:', error);
+
+      if (logUpdate && typeof logUpdate === 'function') {
+        await logUpdate('INVESTASI', `Gagal memperbarui data investasi - Parameter: "${form.sectionLabel}", Indikator: "${form.indikator}"`, {
+          endpoint: `/api/investments/${form.id || 'unknown'}`,
+          isSuccess: false,
+          metadata: {
+            error: error.message,
+          },
+        });
+      }
+
+      alert('Gagal memperbarui data investasi: ' + (error.message || 'Terjadi kesalahan'));
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   const handleSubNoChange = (value) => {

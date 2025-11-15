@@ -76,6 +76,34 @@ export default function InvestasiPage() {
     setLocalError(null);
   }, [INVESTASI_form]);
 
+  const handleAuditLog = async (logData) => {
+    try {
+      const auditData = {
+        ...logData,
+        waktu: new Date().toLocaleString('id-ID'),
+        user: 'Nama User', // Ganti dengan user yang login dari context/state
+        ipAddress: '192.168.1.1', // Dapatkan dari sistem atau API
+      };
+
+      console.log('AUDIT LOG:', auditData);
+
+      // Kirim ke backend API
+      const response = await fetch('/api/v1/audit-logs', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(auditData),
+      });
+
+      if (!response.ok) {
+        console.error('Gagal menyimpan audit log');
+      }
+    } catch (error) {
+      console.error('Error audit log:', error);
+    }
+  };
+
   // Convert service data to form format
   // Di InvestasiPage - perbaiki convertFormToService
   const convertFormToService = (formData) => {
@@ -166,17 +194,36 @@ export default function InvestasiPage() {
 
       const serviceData = convertFormToService(INVESTASI_form);
       console.log('Sending data to server - no_indikator:', serviceData.no_indikator, 'type:', typeof serviceData.no_indikator);
+      // Log audit sebelum create
+      await handleAuditLog({
+        aksi: 'TAMBAH',
+        module: 'INVESTASI',
+        deskripsi: `Menambahkan data investasi baru - Parameter: "${serviceData.parameter}", Indicator: "${serviceData.indikator}", Sub No: ${serviceData.no_indikator}`,
+        status: 'SUKSES',
+      });
 
       await createInvestasi(serviceData);
       INVESTASI_resetForm();
       alert('Data berhasil ditambahkan!');
     } catch (err) {
+      await handleAuditLog({
+        aksi: 'TAMBAH',
+        module: 'INVESTASI',
+        deskripsi: `Gagal menambah data investasi - Parameter: "${INVESTASI_form.sectionLabel}", Indicator: "${INVESTASI_form.indikator}"`,
+        status: 'GAGAL',
+      });
       console.error('Gagal menambah data:', err);
     }
   };
 
   const INVESTASI_startEdit = (investasi) => {
     setINVESTASI_form(convertFormToService(investasi));
+    handleAuditLog({
+      aksi: 'EDIT',
+      module: 'INVESTASI',
+      deskripsi: `Memulai edit data investasi - Parameter: "${investasi.parameter || investasi.sectionLabel}", Indicator: "${investasi.indikator}", Sub No: ${investasi.no_indikator || investasi.subNo}`,
+      status: 'SUKSES',
+    });
     setINVESTASI_editingId(investasi.id_investasi);
   };
 
@@ -185,9 +232,21 @@ export default function InvestasiPage() {
 
     try {
       const serviceData = convertFormToService(INVESTASI_form);
+      await handleAuditLog({
+        aksi: 'UPDATE',
+        module: 'INVESTASI',
+        deskripsi: `Mengupdate data investasi - Parameter: "${serviceData.parameter}", Indicator: "${serviceData.indikator}", Sub No: ${serviceData.no_indikator}`,
+        status: 'SUKSES',
+      });
       await updateInvestasi(INVESTASI_editingId, serviceData);
       INVESTASI_resetForm();
     } catch (err) {
+      await handleAuditLog({
+        aksi: 'UPDATE',
+        module: 'INVESTASI',
+        deskripsi: `Gagal update data investasi - Parameter: "${INVESTASI_form.sectionLabel}", Indicator: "${INVESTASI_form.indikator}"`,
+        status: 'GAGAL',
+      });
       console.error('Gagal mengupdate data:', err);
     }
   };
@@ -195,11 +254,23 @@ export default function InvestasiPage() {
   const INVESTASI_removeRow = async (investasi) => {
     if (window.confirm('Apakah Anda yakin ingin menghapus data ini?')) {
       try {
+        await handleAuditLog({
+          aksi: 'HAPUS',
+          module: 'INVESTASI',
+          deskripsi: `Menghapus data investasi - Parameter: "${investasi.parameter || investasi.sectionLabel}", Indicator: "${investasi.indikator}", Sub No: ${investasi.no_indikator || investasi.subNo}`,
+          status: 'SUKSES',
+        });
         await deleteInvestasiDt(investasi.id_investasi);
         if (INVESTASI_editingId === investasi.id_investasi) {
           INVESTASI_resetForm();
         }
       } catch (err) {
+        await handleAuditLog({
+          aksi: 'HAPUS',
+          module: 'INVESTASI',
+          deskripsi: `Gagal menghapus data investasi - Parameter: "${investasi.parameter || investasi.sectionLabel}", Indicator: "${investasi.indikator}"`,
+          status: 'GAGAL',
+        });
         console.error('Gagal menghapus data:', err);
       }
     }
@@ -207,6 +278,12 @@ export default function InvestasiPage() {
 
   const INVESTASI_exportExcel = () => {
     if (exportInvestasiToExcel) {
+      handleAuditLog({
+        aksi: 'EXPORT',
+        module: 'INVESTASI',
+        deskripsi: `Export data Excel investasi - Periode: ${viewYear}-${viewQuarter}, Jumlah Data: ${investasiDt.length}`,
+        status: 'SUKSES',
+      });
       exportInvestasiToExcel(investasiDt, viewYear, viewQuarter);
     }
   };
@@ -295,7 +372,7 @@ export default function InvestasiPage() {
       )}
 
       {/* Table */}
-      {!loading && <DataTable rows={INVESTASI_filtered} totalWeighted={INVESTASI_totalWeighted} viewYear={viewYear} viewQuarter={viewQuarter} startEdit={INVESTASI_startEdit} removeRow={INVESTASI_removeRow} />}
+      {!loading && <DataTable rows={INVESTASI_filtered} totalWeighted={INVESTASI_totalWeighted} viewYear={viewYear} viewQuarter={viewQuarter} startEdit={INVESTASI_startEdit} removeRow={INVESTASI_removeRow} logAudit={handleAuditLog} />}
     </div>
   );
 }

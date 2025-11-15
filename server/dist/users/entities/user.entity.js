@@ -15,6 +15,7 @@ const userEnum_1 = require("../enum/userEnum");
 const auth_entity_1 = require("../../auth/entities/auth.entity");
 const divisi_entity_1 = require("../../divisi/entities/divisi.entity");
 const notification_entity_1 = require("../../notification/entities/notification.entity");
+const audit_log_entity_1 = require("../../audit-log/entities/audit-log.entity");
 let User = class User {
     user_id;
     userID;
@@ -23,6 +24,7 @@ let User = class User {
     gender;
     divisi;
     auth;
+    auditLogs;
     created_at;
     updated_at;
     deleted_at;
@@ -72,6 +74,10 @@ __decorate([
     }),
     __metadata("design:type", auth_entity_1.Auth)
 ], User.prototype, "auth", void 0);
+__decorate([
+    (0, typeorm_1.OneToMany)(() => audit_log_entity_1.AuditLog, (log) => log.user),
+    __metadata("design:type", Array)
+], User.prototype, "auditLogs", void 0);
 __decorate([
     (0, typeorm_1.CreateDateColumn)(),
     __metadata("design:type", Date)

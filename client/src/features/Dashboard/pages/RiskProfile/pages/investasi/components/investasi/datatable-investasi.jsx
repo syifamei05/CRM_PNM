@@ -1,8 +1,74 @@
 import React from 'react';
 import { Edit3, Trash2 } from 'lucide-react';
 
-export default function DataTable({ rows, totalWeighted, viewYear, viewQuarter, startEdit, removeRow }) {
+export default function DataTable({
+  rows,
+  totalWeighted,
+  viewYear,
+  viewQuarter,
+  startEdit,
+  removeRow,
+  logAudit, // Tambahkan prop untuk fungsi audit log
+}) {
   const filtered = rows;
+
+  // Fungsi untuk handle edit dengan audit log
+  const handleEdit = (rowData) => {
+    // Log aksi edit ke audit log
+    if (logAudit) {
+      logAudit({
+        aksi: 'EDIT',
+        module: 'INVESTASI',
+        deskripsi: `Memulai edit data investasi - Parameter: "${rowData.parameter || rowData.sectionLabel}", Indicator: "${rowData.indikator}", Sub No: ${rowData.no_indikator || rowData.subNo}`,
+        status: 'SUKSES',
+      });
+    }
+    startEdit(rowData);
+  };
+
+  // Fungsi untuk handle delete dengan audit log
+  const handleDelete = async (rowData) => {
+    // Konfirmasi penghapusan
+    const isConfirmed = window.confirm(`Apakah Anda yakin ingin menghapus data investasi?\nParameter: ${rowData.parameter || rowData.sectionLabel}\nIndicator: ${rowData.indikator}`);
+
+    if (isConfirmed) {
+      try {
+        // Log aksi delete ke audit log
+        if (logAudit) {
+          logAudit({
+            aksi: 'HAPUS',
+            module: 'INVESTASI',
+            deskripsi: `Menghapus data investasi - Parameter: "${rowData.parameter || rowData.sectionLabel}", Indicator: "${rowData.indikator}", Sub No: ${rowData.no_indikator || rowData.subNo}`,
+            status: 'SUKSES',
+          });
+        }
+
+        // Panggil fungsi removeRow asli
+        await removeRow(rowData);
+      } catch (error) {
+        // Log jika gagal
+        if (logAudit) {
+          logAudit({
+            aksi: 'HAPUS',
+            module: 'INVESTASI',
+            deskripsi: `Gagal menghapus data investasi - Parameter: "${rowData.parameter || rowData.sectionLabel}", Indicator: "${rowData.indikator}"`,
+            status: 'GAGAL',
+          });
+        }
+        console.error('Error deleting row:', error);
+      }
+    } else {
+      // Log jika user membatalkan
+      if (logAudit) {
+        logAudit({
+          aksi: 'HAPUS',
+          module: 'INVESTASI',
+          deskripsi: `Dibatalkan: Menghapus data investasi - Parameter: "${rowData.parameter || rowData.sectionLabel}"`,
+          status: 'DIBATALKAN',
+        });
+      }
+    }
+  };
 
   return (
     <section className="bg-white rounded-2xl shadow overflow-hidden">
@@ -95,10 +161,10 @@ export default function DataTable({ rows, totalWeighted, viewYear, viewQuarter, 
                     <td className="border border-gray-400 px-3 py-2">{r.keterangan}</td>
                     <td className="border border-gray-400 px-3 py-2">
                       <div className="flex gap-2">
-                        <button onClick={() => startEdit(r)} className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg border hover:bg-gray-50">
+                        <button onClick={() => handleEdit(r)} className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg border hover:bg-gray-50">
                           <Edit3 size={16} /> Edit
                         </button>
-                        <button onClick={() => removeRow(r)} className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg border hover:bg-red-50 text-red-600">
+                        <button onClick={() => handleDelete(r)} className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg border hover:bg-red-50 text-red-600">
                           <Trash2 size={16} /> Hapus
                         </button>
                       </div>

@@ -14,7 +14,7 @@ import { Gender, Role } from '../enum/userEnum';
 import { Auth } from 'src/auth/entities/auth.entity';
 import { Divisi } from 'src/divisi/entities/divisi.entity';
 import { Notification } from 'src/notification/entities/notification.entity'; // ✅ tambahkan import ini
-
+import { AuditLog } from 'src/audit-log/entities/audit-log.entity';
 @Entity('users')
 export class User {
   @PrimaryGeneratedColumn()
@@ -54,6 +54,9 @@ export class User {
     cascade: true,
   })
   auth: Auth;
+
+  @OneToMany(() => AuditLog, (log) => log.user)
+  auditLogs: AuditLog[];
 
   @CreateDateColumn()
   created_at: Date;

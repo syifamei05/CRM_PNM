@@ -16,6 +16,7 @@ import { OperasionalModule } from './operasional/operasional.module';
 import { DivisiModule } from './divisi/divisi.module';
 import { NotificationModule } from './notification/notification.module';
 import { KpmrInvestasiModule } from './investasi/kpmr-investasi/kpmr-investasi.module';
+import { AuditLogModule } from './audit-log/audit-log.module';
 @Module({
   imports: [
     ConfigModule.forRoot({ isGlobal: true }),
@@ -34,6 +35,7 @@ import { KpmrInvestasiModule } from './investasi/kpmr-investasi/kpmr-investasi.m
     DivisiModule,
     NotificationModule,
     KpmrInvestasiModule,
+    AuditLogModule,
   ],
 
   controllers: [AppController],
