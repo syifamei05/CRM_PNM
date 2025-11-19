@@ -355,76 +355,64 @@
 // }
 
 import { motion, AnimatePresence } from 'framer-motion';
-import { Bell, BellOff, CheckCircle, AlertTriangle, Info, X, Search, Trash2, Settings, RefreshCw, LogIn, LogOut, User, Calendar, BarChart3, Shield } from 'lucide-react';
-import { useUserNotifications } from '../hooks/notification.hook';
+import { Bell, CheckCircle, AlertTriangle, X, Search, Trash2, Settings, RefreshCw, LogIn, LogOut, User, Calendar, BarChart3, Shield } from 'lucide-react';
+import { useUserNotificationsWithSync } from '../hooks/notification.hook.with-sync';
 import { useDarkMode } from '../../../../../shared/components/Darkmodecontext';
 import { useNotificationPage } from '../hooks/useNotificationPage';
 import NotificationHeader from '../components/notificationheader';
 import NotificationFilters from '../components/notificationfilter';
 import NotificationList from '../components/notificationlist';
 import NotificationSettings from '../components/notificationsetting';
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useMemo } from 'react';
+import { useNotificationStore } from '../stores/notification.stores';
 
 export default function NotificationPage() {
   const { darkMode } = useDarkMode();
-  const [syncStatus, setSyncStatus] = useState('idle'); // 'idle', 'syncing', 'success', 'error'
+  const [syncStatus, setSyncStatus] = useState('idle');
   const [backendAvailable, setBackendAvailable] = useState(true);
+  const [showSettings, setShowSettings] = useState(false);
 
+  // ✅ Gunakan hook yang sudah diperbaiki
   const {
     notifications,
     unreadCount,
-    markAsRead,
-    markAllAsRead,
-    removeNotification,
-    refreshNotifications,
     isLoading,
     error,
+    markAsRead,
+    removeNotification,
+    markAllAsRead,
+    refreshNotifications,
+    stats,
     loginLogoutNotifications = [],
     activityStats = {
-      totalLogins: 0,
-      todayLogins: 0,
-      last7DaysLogins: 0,
-      lastLogin: null,
+      totalActivities: 0,
+      todayActivities: 0,
+      last7DaysActivities: 0,
+      loginActivities: 0,
+      logoutActivities: 0,
+      lastActivity: null,
     },
-  } = useUserNotifications();
+  } = useUserNotificationsWithSync();
 
-  const {
-    filteredNotifications,
-    categories,
-    filter,
-    categoryFilter,
-    searchTerm,
-    selectedNotifications,
-    showSettings,
-    setFilter,
-    setCategoryFilter,
-    setSearchTerm,
-    setSelectedNotifications,
-    setShowSettings,
-    handleMarkAsRead,
-    handleMarkAllAsRead,
-    handleDelete,
-    handleBulkDelete,
-    handleSelectNotification,
-    handleSelectAll,
-    getNotificationIcon,
-    getTypeColor,
-    formatTime,
-  } = useNotificationPage({
-    notifications,
-    markAsRead,
-    markAllAsRead,
-    removeNotification,
-  });
+  // ✅ Gunakan notification page hook
+  const { filteredNotifications, categories, filter, categoryFilter, searchTerm, selectedNotifications, setFilter, setCategoryFilter, setSearchTerm, setSelectedNotifications, getNotificationIcon, getTypeColor, formatTime } =
+    useNotificationPage({
+      notifications,
+      markAsRead,
+      markAllAsRead,
+      removeNotification,
+    });
 
   const containerClass = `min-h-screen p-6 transition-colors duration-300 ${darkMode ? 'bg-gradient-to-br from-gray-900 to-gray-800 text-white' : 'bg-gradient-to-br from-gray-50 to-gray-100 text-gray-900'}`;
-  const handleRefreshWithStatus = async () => {
+
+  const handleRefreshWithStatus = useCallback(async () => {
+    if (syncStatus === 'syncing') return;
+
     setSyncStatus('syncing');
     try {
       await refreshNotifications();
       setSyncStatus('success');
       setBackendAvailable(true);
-
       setTimeout(() => setSyncStatus('idle'), 3000);
     } catch (error) {
       console.error('❌ Refresh failed:', error);
@@ -433,39 +421,48 @@ export default function NotificationPage() {
 
       setTimeout(() => setSyncStatus('idle'), 5000);
     }
-  };
+  }, [refreshNotifications, syncStatus]);
 
   useEffect(() => {
     if (notifications.length === 0 && !isLoading) {
       handleRefreshWithStatus();
     }
-  }, []);
+  }, [notifications.length, isLoading, handleRefreshWithStatus]);
 
-  const handleMarkAsReadWithSync = async (notificationId) => {
-    try {
-      console.log('📝 Marking notification as read:', notificationId);
-      await handleMarkAsRead(notificationId);
-    } catch (error) {
-      console.error('❌ Failed to mark notification as read:', error);
-    }
-  };
+  const handleDeleteWithSync = useCallback(
+    async (notificationId) => {
+      try {
+        console.log('🗑️ Deleting notification:', notificationId);
 
-  const handleDeleteWithSync = async (notificationId) => {
-    try {
-      console.log('🗑️ Deleting notification:', notificationId);
+        const isTemporary = !notificationId || notificationId.startsWith('temp-') || isNaN(Number(notificationId.replace('temp-', '')));
 
-      const newSelected = selectedNotifications.filter((id) => id !== notificationId);
-      if (newSelected.length !== selectedNotifications.length) {
-        setSelectedNotifications(newSelected);
+        if (isTemporary) {
+          console.log('💾 Deleting temporary notification locally');
+          useNotificationStore.getState().removeNotification(notificationId);
+        } else {
+          await removeNotification(notificationId);
+        }
+
+        const newSelected = selectedNotifications.filter((id) => id !== notificationId);
+        if (newSelected.length !== selectedNotifications.length) {
+          setSelectedNotifications(newSelected);
+        }
+
+        await removeNotification(notificationId);
+        console.log('✅ Successfully deleted notification:', notificationId);
+      } catch (error) {
+        console.error('❌ Failed to delete notification:', error);
+        if (notificationId.startsWith('temp-')) {
+          const newSelected = selectedNotifications.filter((id) => id !== notificationId);
+          setSelectedNotifications(newSelected);
+        }
+        throw error;
       }
+    },
+    [selectedNotifications, setSelectedNotifications, removeNotification]
+  );
 
-      await handleDelete(notificationId);
-    } catch (error) {
-      console.error('❌ Failed to delete notification:', error);
-    }
-  };
-
-  const handleBulkDeleteWithSync = async () => {
+  const handleBulkDeleteWithSync = useCallback(async () => {
     if (selectedNotifications.length === 0) {
       console.warn('⚠️ No notifications selected for bulk delete');
       return;
@@ -479,71 +476,112 @@ export default function NotificationPage() {
     }
 
     try {
-      console.log('🗑️ Bulk deleting notifications:', selectedNotifications.length);
-      const deletePromises = selectedNotifications.map((notificationId) => handleDelete(notificationId));
+      console.log('🗑️ Starting bulk delete of', selectedNotifications.length, 'notifications');
 
-      await Promise.all(deletePromises);
+      const tempIds = selectedNotifications.filter((id) => !id || id.startsWith('temp-') || isNaN(Number(id.replace('temp-', ''))));
+      const realIds = selectedNotifications.filter((id) => id && !id.startsWith('temp-') && !isNaN(Number(id)));
+
+      console.log('📊 Bulk delete breakdown:', {
+        temporary: tempIds.length,
+        real: realIds.length,
+      });
+
+      if (realIds.length > 0) {
+        console.log('🔄 Deleting real notifications from backend:', realIds);
+
+        for (const notificationId of realIds) {
+          try {
+            await removeNotification(notificationId);
+          } catch (error) {
+            console.error(`❌ Failed to delete real notification ${notificationId}:`, error);
+          }
+        }
+      }
+
+      if (tempIds.length > 0) {
+        console.log('💾 Deleting temporary notifications locally:', tempIds);
+
+        const store = useNotificationStore.getState();
+        tempIds.forEach((id) => {
+          try {
+            store.removeNotification(id);
+            console.log('✅ Deleted temporary notification:', id);
+          } catch (error) {
+            console.error(`❌ Failed to delete temporary notification ${id}:`, error);
+          }
+        });
+      }
+
 
       setSelectedNotifications([]);
-
       console.log('✅ Bulk delete completed successfully');
     } catch (error) {
-      console.error('❌ Failed to bulk delete notifications:', error);
-      setSelectedNotifications([]);
-    }
-  };
+      console.error('❌ Bulk delete failed:', error);
 
-  const handleSelectAllFiltered = () => {
-    if (filteredNotifications.length === 0) {
-      console.warn('⚠️ No notifications to select');
-      return;
-    }
-
-    if (selectedNotifications.length === filteredNotifications.length) {
-      console.log('❌ Deselecting all filtered notifications');
       setSelectedNotifications([]);
-    } else {
-      const allFilteredIds = filteredNotifications.map((n) => n.id);
-      console.log('✅ Selecting all filtered notifications:', allFilteredIds.length);
-      setSelectedNotifications(allFilteredIds);
+
+      if (error.message && !error.message.includes('temporary') && !error.message.includes('temp-')) {
+        alert('Failed to delete some notifications. Please try again.');
+      } else {
+        console.log('⚠️ Bulk delete completed with warnings (temporary notifications deleted)');
+      }
     }
-  };
+  }, [selectedNotifications, removeNotification, setSelectedNotifications]);
 
   const handleSelectNotificationLocal = useCallback(
     (notificationId, isSelected) => {
-      console.log('🔘 Selection update:', { notificationId, isSelected });
-
-      let newSelected;
-      if (isSelected) {
-        newSelected = [...selectedNotifications, notificationId];
-      } else {
-        newSelected = selectedNotifications.filter((id) => id !== notificationId);
-      }
-
-      console.log('📋 New selection:', newSelected.length);
-      setSelectedNotifications(newSelected);
+      setSelectedNotifications((prev) => (isSelected ? [...prev, notificationId] : prev.filter((id) => id !== notificationId)));
     },
-    [selectedNotifications, setSelectedNotifications]
+    [setSelectedNotifications]
   );
 
-  const handleClearSelection = () => {
-    console.log('🧹 Clearing selection');
-    setSelectedNotifications([]);
-  };
+  const handleSelectAllFiltered = useCallback(() => {
+    if (filteredNotifications.length === 0) return;
 
-  const handleMarkAllAsReadWithSync = async () => {
-    if (unreadCount === 0) {
-      console.log('ℹ️ No unread notifications to mark as read');
-      return;
-    }
+    const allFilteredIds = filteredNotifications.map((n) => n.id);
+    const isAllSelected = selectedNotifications.length === filteredNotifications.length;
+
+    setSelectedNotifications(isAllSelected ? [] : allFilteredIds);
+  }, [filteredNotifications, selectedNotifications.length, setSelectedNotifications]);
+
+  const handleClearSelection = useCallback(() => {
+    setSelectedNotifications([]);
+  }, [setSelectedNotifications]);
+
+  const handleMarkAsReadWithSync = useCallback(
+    async (notificationId) => {
+      try {
+        await markAsRead(notificationId);
+      } catch (error) {
+        console.error('❌ Failed to mark notification as read:', error);
+        throw error;
+      }
+    },
+    [markAsRead]
+  );
+
+  const handleMarkAllAsReadWithSync = useCallback(async () => {
+    if (unreadCount === 0) return;
 
     try {
-      console.log('📝 Marking all notifications as read');
-      await handleMarkAllAsRead();
+      await markAllAsRead();
     } catch (error) {
       console.error('❌ Failed to mark all notifications as read:', error);
+      throw error;
     }
-  };
+  }, [markAllAsRead, unreadCount]);
+
+  const safeActivityStats = useMemo(
+    () => ({
+      totalActivities: activityStats?.totalActivities || 0,
+      todayActivities: activityStats?.todayActivities || 0,
+      last7DaysActivities: activityStats?.last7DaysActivities || 0,
+      loginActivities: activityStats?.loginActivities || 0,
+      logoutActivities: activityStats?.logoutActivities || 0,
+      lastActivity: activityStats?.lastActivity || null,
+    }),
+    [activityStats]
+  );
 
   if (isLoading && notifications.length === 0) {
     return (
@@ -558,20 +596,17 @@ export default function NotificationPage() {
     );
   }
 
-  const safeActivityStats = {
-    totalLogins: activityStats?.totalLogins || 0,
-    todayLogins: activityStats?.todayLogins || 0,
-    last7DaysLogins: activityStats?.last7DaysLogins || 0,
-    lastLogin: activityStats?.lastLogin || null,
-  };
-
   return (
     <div className={containerClass}>
-      <div className="w-full mx-auto">
-        {/* Sync Status Banner */}
+      <div className=" mx-auto">
         <AnimatePresence>
           {syncStatus === 'syncing' && (
-            <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} className="mb-6 p-4 bg-blue-100 border border-blue-400 text-blue-700 rounded-lg">
+            <motion.div
+              initial={{ opacity: 0, y: -10 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -10 }}
+              className="mb-6 p-4 bg-blue-100 border border-blue-400 text-blue-700 rounded-lg dark:bg-blue-900/20 dark:border-blue-800 dark:text-blue-300"
+            >
               <div className="flex items-center gap-2">
                 <RefreshCw className="w-5 h-5 animate-spin" />
                 <span>Syncing notifications with server...</span>
@@ -580,7 +615,12 @@ export default function NotificationPage() {
           )}
 
           {syncStatus === 'success' && (
-            <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} className="mb-6 p-4 bg-green-100 border border-green-400 text-green-700 rounded-lg">
+            <motion.div
+              initial={{ opacity: 0, y: -10 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -10 }}
+              className="mb-6 p-4 bg-green-100 border border-green-400 text-green-700 rounded-lg dark:bg-green-900/20 dark:border-green-800 dark:text-green-300"
+            >
               <div className="flex items-center gap-2">
                 <CheckCircle className="w-5 h-5" />
                 <span>Notifications synced successfully!</span>
@@ -589,7 +629,12 @@ export default function NotificationPage() {
           )}
 
           {syncStatus === 'error' && (
-            <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} className="mb-6 p-4 bg-red-100 border border-red-400 text-red-700 rounded-lg">
+            <motion.div
+              initial={{ opacity: 0, y: -10 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -10 }}
+              className="mb-6 p-4 bg-red-100 border border-red-400 text-red-700 rounded-lg dark:bg-red-900/20 dark:border-red-800 dark:text-red-300"
+            >
               <div className="flex items-center gap-2">
                 <AlertTriangle className="w-5 h-5" />
                 <span>Failed to sync notifications. Using local data.</span>
@@ -598,6 +643,7 @@ export default function NotificationPage() {
           )}
         </AnimatePresence>
 
+        {/* Main Header */}
         <NotificationHeader
           darkMode={darkMode}
           unreadCount={unreadCount}
@@ -615,7 +661,7 @@ export default function NotificationPage() {
         />
 
         {error && (
-          <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} className="mb-6 p-4 bg-red-100 border border-red-400 text-red-700 rounded-lg">
+          <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} className="mb-6 p-4 bg-red-100 border border-red-400 text-red-700 rounded-lg dark:bg-red-900/20 dark:border-red-800 dark:text-red-300">
             <div className="flex items-center gap-2">
               <AlertTriangle className="w-5 h-5" />
               <span>{error}</span>
@@ -623,7 +669,7 @@ export default function NotificationPage() {
           </motion.div>
         )}
 
-        {safeActivityStats.totalLogins > 0 && (
+        {safeActivityStats.totalActivities > 0 && (
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
@@ -637,13 +683,13 @@ export default function NotificationPage() {
               <div className={`text-sm px-3 py-1 rounded-full ${darkMode ? 'bg-gray-700 text-gray-300' : 'bg-gray-200 text-gray-700'}`}>Last sync: {formatTime(new Date())}</div>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4 mb-6">
               <div className={`p-4 rounded-lg border transition-colors duration-200 ${darkMode ? 'bg-blue-900/20 border-blue-800' : 'bg-blue-50 border-blue-200'}`}>
                 <div className="flex items-center gap-3">
                   <LogIn className={`w-8 h-8 ${darkMode ? 'text-blue-400' : 'text-blue-600'}`} />
                   <div>
-                    <div className="text-2xl font-bold">{safeActivityStats.totalLogins}</div>
-                    <div className={`text-sm ${darkMode ? 'text-blue-300' : 'text-blue-700'}`}>Total Logins</div>
+                    <div className="text-2xl font-bold">{safeActivityStats.totalActivities}</div>
+                    <div className={`text-sm ${darkMode ? 'text-blue-300' : 'text-blue-700'}`}>Total Activities</div>
                   </div>
                 </div>
               </div>
@@ -652,7 +698,7 @@ export default function NotificationPage() {
                 <div className="flex items-center gap-3">
                   <Calendar className={`w-8 h-8 ${darkMode ? 'text-green-400' : 'text-green-600'}`} />
                   <div>
-                    <div className="text-2xl font-bold">{safeActivityStats.todayLogins}</div>
+                    <div className="text-2xl font-bold">{safeActivityStats.todayActivities}</div>
                     <div className={`text-sm ${darkMode ? 'text-green-300' : 'text-green-700'}`}>Today</div>
                   </div>
                 </div>
@@ -662,7 +708,7 @@ export default function NotificationPage() {
                 <div className="flex items-center gap-3">
                   <BarChart3 className={`w-8 h-8 ${darkMode ? 'text-purple-400' : 'text-purple-600'}`} />
                   <div>
-                    <div className="text-2xl font-bold">{safeActivityStats.last7DaysLogins}</div>
+                    <div className="text-2xl font-bold">{safeActivityStats.last7DaysActivities}</div>
                     <div className={`text-sm ${darkMode ? 'text-purple-300' : 'text-purple-700'}`}>Last 7 Days</div>
                   </div>
                 </div>
@@ -672,12 +718,24 @@ export default function NotificationPage() {
                 <div className="flex items-center gap-3">
                   <User className={`w-8 h-8 ${darkMode ? 'text-orange-400' : 'text-orange-600'}`} />
                   <div>
-                    <div className="text-sm font-semibold mb-1">Last Activity</div>
-                    <div className={`text-xs ${darkMode ? 'text-orange-300' : 'text-orange-700'}`}>{safeActivityStats.lastLogin ? formatTime(new Date(safeActivityStats.lastLogin)) : 'No activity'}</div>
+                    <div className="text-2xl font-bold">{safeActivityStats.loginActivities}</div>
+                    <div className={`text-sm ${darkMode ? 'text-orange-300' : 'text-orange-700'}`}>Logins</div>
+                  </div>
+                </div>
+              </div>
+
+              <div className={`p-4 rounded-lg border transition-colors duration-200 ${darkMode ? 'bg-red-900/20 border-red-800' : 'bg-red-50 border-red-200'}`}>
+                <div className="flex items-center gap-3">
+                  <LogOut className={`w-8 h-8 ${darkMode ? 'text-red-400' : 'text-red-600'}`} />
+                  <div>
+                    <div className="text-2xl font-bold">{safeActivityStats.logoutActivities}</div>
+                    <div className={`text-sm ${darkMode ? 'text-red-300' : 'text-red-700'}`}>Logouts</div>
                   </div>
                 </div>
               </div>
             </div>
+
+            {/* Recent Activities */}
             <div>
               <div className="flex items-center justify-between mb-4">
                 <h3 className="font-semibold text-lg">Recent Security Activities</h3>
@@ -779,6 +837,7 @@ export default function NotificationPage() {
           isRefreshing={syncStatus === 'syncing'}
         />
 
+        {/* Footer Sync Button */}
         {filteredNotifications.length > 0 && (
           <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3 }} className="flex justify-center mt-8">
             <button
@@ -794,7 +853,8 @@ export default function NotificationPage() {
           </motion.div>
         )}
 
-        {safeActivityStats.totalLogins === 0 && loginLogoutNotifications.length === 0 && (
+        {/* Empty Security Activities State */}
+        {safeActivityStats.totalActivities === 0 && loginLogoutNotifications.length === 0 && (
           <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className={`rounded-2xl border transition-colors duration-300 p-8 text-center ${darkMode ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'}`}>
             <Shield className={`w-16 h-16 mx-auto mb-4 ${darkMode ? 'text-gray-600' : 'text-gray-400'}`} />
             <h3 className="text-xl font-semibold mb-2">No Security Activities Yet</h3>
@@ -805,7 +865,8 @@ export default function NotificationPage() {
           </motion.div>
         )}
 
-        {process.env.NODE_ENV === 'development' && (
+        {/* Development Debug Info */}
+        {import.meta.env.DEV && (
           <div className={`mt-8 p-4 rounded-lg text-xs ${darkMode ? 'bg-gray-800 text-gray-400' : 'bg-gray-100 text-gray-600'}`}>
             <div>
               Total: {notifications.length} | Unread: {unreadCount} | Filtered: {filteredNotifications.length}
@@ -815,6 +876,9 @@ export default function NotificationPage() {
             </div>
             <div>
               Selected: {selectedNotifications.length} | Backend: {backendAvailable ? 'Online' : 'Offline'}
+            </div>
+            <div>
+              Stats: Total {stats.total} | Unread {stats.unread} | Read {stats.read}
             </div>
           </div>
         )}

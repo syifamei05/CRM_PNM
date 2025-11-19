@@ -70,25 +70,60 @@ export class NotificationService {
     }
   }
 
+  async notifyUserStatusChange(
+    userId: number,
+    userName: string,
+    status: 'online' | 'offline',
+  ): Promise<Notification> {
+    try {
+      const notification = await this.create({
+        // ❗ JANGAN kirim userId untuk broadcast notification
+        type: NotificationType.SYSTEM,
+        title: `User Status Update`,
+        message: `${userName} is now ${status}`,
+        category: 'user-status',
+        metadata: { userId, userName, status, timestamp: new Date() },
+        expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000),
+      });
+
+      // Notifikasi sudah otomatis dikirim via create() method
+      this.logger.log(
+        `User status notification created for ${userName} (${status})`,
+      );
+
+      return notification;
+    } catch (error) {
+      this.logger.error('Failed to create user status notification', error);
+      throw new InternalServerErrorException(
+        'Failed to create status notification',
+      );
+    }
+  }
+
   async create(createDto: CreateNotificationDto): Promise<Notification> {
     try {
       const notification = this.notificationRepository.create({
         ...createDto,
-        user_id: Number(createDto.userId),
+        user_id: createDto.userId ? Number(createDto.userId) : null,
         expires_at: createDto.expiresAt ?? null,
       });
 
       const savedNotification =
         await this.notificationRepository.save(notification);
 
-      this.gateway.sendNotificationToUser(
-        savedNotification.user_id,
-        savedNotification,
-      );
-      this.gateway.sendNotificationToAll(savedNotification);
+      if (savedNotification.user_id) {
+        this.gateway.sendNotificationToUser(
+          savedNotification.user_id,
+          savedNotification,
+        );
+      } else {
+        this.gateway.sendNotificationToAll(savedNotification);
+      }
 
       this.logger.log(
-        `Notification created for user ${savedNotification.user_id}`,
+        savedNotification.user_id
+          ? `Notification created for user ${savedNotification.user_id}`
+          : `Broadcast notification created`,
       );
       return savedNotification;
     } catch (error) {
@@ -105,8 +140,12 @@ export class NotificationService {
       const notification = await this.findOne(notification_id);
       Object.assign(notification, updateNotificationDto);
       const updated = await this.notificationRepository.save(notification);
-      this.gateway.sendNotificationToUser(updated.user_id, updated);
-      this.gateway.sendNotificationToAll(updated);
+
+      if (updated.user_id) {
+        this.gateway.sendNotificationToUser(updated.user_id, updated);
+      } else {
+        this.gateway.sendNotificationToAll(updated);
+      }
 
       return updated;
     } catch (error) {
@@ -151,7 +190,7 @@ export class NotificationService {
 
       const query = this.notificationRepository
         .createQueryBuilder('notification')
-        .where('notification.user_id IS NULL') // Broadcast notifications
+        .where('notification.user_id IS NULL')
         .orderBy('notification.created_at', 'DESC')
         .skip((page - 1) * limit)
         .take(limit);
@@ -217,7 +256,12 @@ export class NotificationService {
       const notification = await this.findOne(notification_id);
       notification.read = true;
       const updated = await this.notificationRepository.save(notification);
-      this.gateway.sendNotificationToAll(updated);
+
+      if (updated.user_id) {
+        this.gateway.sendNotificationToUser(updated.user_id, updated);
+      } else {
+        this.gateway.sendNotificationToAll(updated);
+      }
 
       return updated;
     } catch (error) {
@@ -273,9 +317,9 @@ export class NotificationService {
 
       this.logger.log(`Removed ${result.affected ?? 0} expired notifications`);
     } catch (error) {
-      this.logger.error('Failed to remove expired notifications', error);
+      this.logger.error('gagal memindahkan notifikasi expired', error);
       throw new InternalServerErrorException(
-        'Failed to remove expired notifications',
+        'gagal memindahkan notifikasi expired',
       );
     }
   }
@@ -286,7 +330,7 @@ export class NotificationService {
     try {
       const notificationsData = createDtos.map((dto) => ({
         ...dto,
-        user_id: Number(dto.userId),
+        user_id: dto.userId ? Number(dto.userId) : null,
         expires_at: dto.expiresAt ?? null,
       }));
 
@@ -298,8 +342,8 @@ export class NotificationService {
       this.logger.log(`Created ${savedNotifications.length} notifications`);
       return savedNotifications;
     } catch (error) {
-      this.logger.error('Failed to create multiple notifications', error);
-      throw new InternalServerErrorException('Failed to create notifications');
+      this.logger.error('gagal buat notifikasi', error);
+      throw new InternalServerErrorException('gagal buat notifikasi');
     }
   }
 
@@ -322,32 +366,11 @@ export class NotificationService {
       const [notifications, total] = await query.getManyAndCount();
       return { notifications, total };
     } catch (error) {
-      this.logger.error(
-        `Failed to find notifications for user ${user_id}`,
-        error,
-      );
+      this.logger.error(`gagal menemukan user id ${user_id}`, error);
       throw new InternalServerErrorException(
         'Failed to retrieve user notifications',
       );
     }
-  }
-
-  async notifyUserStatusChange(
-    userId: number,
-    userName: string,
-    status: 'online' | 'offline',
-  ) {
-    const notification = await this.create({
-      userId,
-      type: NotificationType.SYSTEM,
-      title: `User ${status}`,
-      message: `${userName} is now ${status}`,
-      category: 'user-status',
-      metadata: { userId, status },
-      expiresAt: null,
-    });
-
-    this.gateway.sendNotificationToAll(notification);
   }
 
   async getRecentUserNotifications(

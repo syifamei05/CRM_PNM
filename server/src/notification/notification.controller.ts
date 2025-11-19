@@ -9,6 +9,9 @@ import {
   Query,
   Logger,
   ParseIntPipe,
+  DefaultValuePipe,
+  UsePipes,
+  ValidationPipe,
 } from '@nestjs/common';
 import { NotificationService } from './notification.service';
 import { CreateNotificationDto } from './dto/create-notification.dto';
@@ -16,6 +19,7 @@ import { UpdateNotificationDto } from './dto/update-notification.dto';
 import { UserStatusDto } from './dto/user-status.dto';
 
 @Controller('notifications')
+@UsePipes(new ValidationPipe({ whitelist: true, transform: true }))
 export class NotificationController {
   private readonly logger = new Logger(NotificationController.name);
 
@@ -29,32 +33,59 @@ export class NotificationController {
 
   @Get('user/:user_id')
   async findByUser(
-    @Param('user_id') user_id: number,
+    @Param('user_id', ParseIntPipe) user_id: number,
     @Query('unreadOnly') unreadOnly?: string,
-    @Query('limit') limit?: string,
-    @Query('page') page?: string,
+    @Query('limit', new DefaultValuePipe(50), ParseIntPipe) limit?: number,
+    @Query('page', new DefaultValuePipe(1), ParseIntPipe) page?: number,
   ) {
-    this.logger.log(`Fetching notifications for user ${user_id}`);
-    return await this.notificationService.findByUser(Number(user_id), {
+    this.logger.log(`Fetching personal notifications for user ${user_id}`);
+    return await this.notificationService.findByUser(user_id, {
       unreadOnly: unreadOnly === 'true',
-      limit: limit ? Number(limit) : undefined,
-      page: page ? Number(page) : undefined,
+      limit,
+      page,
+    });
+  }
+
+  @Get('user/:user_id/all')
+  async getAllForUser(
+    @Param('user_id', ParseIntPipe) user_id: number,
+    @Query('unreadOnly') unreadOnly?: string,
+    @Query('limit', new DefaultValuePipe(50), ParseIntPipe) limit?: number,
+    @Query('page', new DefaultValuePipe(1), ParseIntPipe) page?: number,
+  ) {
+    this.logger.log(`Fetching all notifications for user ${user_id}`);
+    return await this.notificationService.findAllForUser(user_id, {
+      unreadOnly: unreadOnly === 'true',
+      limit,
+      page,
     });
   }
 
   @Get('user/:user_id/unread-count')
-  async getUnreadCount(@Param('user_id') user_id: number) {
+  async getUnreadCount(@Param('user_id', ParseIntPipe) user_id: number) {
     this.logger.log(`Fetching unread count for user ${user_id}`);
-    const count = await this.notificationService.getUnreadCount(
-      Number(user_id),
-    );
+    const count = await this.notificationService.getUnreadCount(user_id);
     return { count };
   }
 
+  @Get('broadcast')
+  async getBroadcastNotifications(
+    @Query('unreadOnly') unreadOnly?: string,
+    @Query('limit', new DefaultValuePipe(50), ParseIntPipe) limit?: number,
+    @Query('page', new DefaultValuePipe(1), ParseIntPipe) page?: number,
+  ) {
+    this.logger.log('Fetching broadcast notifications');
+    return await this.notificationService.findBroadcastNotifications({
+      unreadOnly: unreadOnly === 'true',
+      limit,
+      page,
+    });
+  }
+
   @Get(':id')
-  async findOne(@Param('id') id: number) {
+  async findOne(@Param('id', ParseIntPipe) id: number) {
     this.logger.log(`Fetching notification ${id}`);
-    return await this.notificationService.findOne(Number(id));
+    return await this.notificationService.findOne(id);
   }
 
   @Post()
@@ -67,105 +98,82 @@ export class NotificationController {
   async createMultiple(
     @Body() createNotificationDtos: CreateNotificationDto[],
   ) {
-    this.logger.log('Creating multiple notifications');
+    this.logger.log(`Creating ${createNotificationDtos.length} notifications`);
     return await this.notificationService.createMultiple(
       createNotificationDtos,
     );
   }
 
-  // BARUUUU
-  // ##--------------------------------------------------------------------------------------
-
-  @Get('user/:user_id/all')
-  async getAllForUser(
-    @Param('user_id', ParseIntPipe) user_id: number,
-    @Query('unreadOnly') unreadOnly?: string,
-    @Query('limit') limit?: string,
-    @Query('page') page?: string,
-  ) {
-    return await this.notificationService.findAllForUser(user_id, {
-      unreadOnly: unreadOnly === 'true',
-      limit: limit ? parseInt(limit, 10) : undefined,
-      page: page ? parseInt(page, 10) : undefined,
-    });
+  @Post('user-status')
+  async userStatusNotification(@Body() userStatusDto: UserStatusDto) {
+    this.logger.log(
+      `User status change: ${userStatusDto.userName} is ${userStatusDto.status}`,
+    );
+    return await this.notificationService.notifyUserStatusChange(
+      userStatusDto.userId,
+      userStatusDto.userName,
+      userStatusDto.status,
+    );
   }
 
-  @Get('broadcast')
-  async getBroadcastNotifications(
-    @Query('unreadOnly') unreadOnly?: string,
-    @Query('limit') limit?: string,
-    @Query('page') page?: string,
-  ) {
-    return await this.notificationService.findBroadcastNotifications({
-      unreadOnly: unreadOnly === 'true',
-      limit: limit ? parseInt(limit, 10) : undefined,
-      page: page ? parseInt(page, 10) : undefined,
-    });
-  }
-
-  // BARUUUU
-  // ##--------------------------------------------------------------------------------------
-
-  /** 🔹 Update notifikasi */
   @Patch(':id')
   async update(
-    @Param('id') id: number,
+    @Param('id', ParseIntPipe) id: number,
     @Body() updateNotificationDto: UpdateNotificationDto,
   ) {
     this.logger.log(`Updating notification ${id}`);
-    return await this.notificationService.update(
-      Number(id),
-      updateNotificationDto,
-    );
+    return await this.notificationService.update(id, updateNotificationDto);
   }
 
   @Patch(':id/read')
-  async markAsRead(@Param('id') id: number) {
+  async markAsRead(@Param('id', ParseIntPipe) id: number) {
     this.logger.log(`Marking notification ${id} as read`);
-    return await this.notificationService.markAsRead(Number(id));
-  }
-
-  @Post('user-status')
-  async userStatusNotification(@Body() body: UserStatusDto) {
-    return await this.notificationService.notifyUserStatusChange(
-      body.userId,
-      body.userName,
-      body.status,
-    );
+    return await this.notificationService.markAsRead(id);
   }
 
   @Patch('user/:user_id/mark-all-read')
-  async markAllAsRead(@Param('user_id') user_id: number) {
+  async markAllAsRead(@Param('user_id', ParseIntPipe) user_id: number) {
     this.logger.log(`Marking all notifications as read for user ${user_id}`);
-    await this.notificationService.markAllAsRead(Number(user_id));
-    return { message: 'All notifications marked as read' };
+    await this.notificationService.markAllAsRead(user_id);
+    return {
+      success: true,
+      message: 'All notifications marked as read',
+      user_id,
+    };
   }
+
   @Get('user/:user_id/recent')
   async getRecentUserNotifications(
-    @Param('user_id') user_id: number,
-    @Query('hours') hours?: string,
+    @Param('user_id', ParseIntPipe) user_id: number,
+    @Query('hours', new DefaultValuePipe(24), ParseIntPipe) hours?: number,
   ) {
-    const range = hours ? Number(hours) : 24;
     this.logger.log(
-      `Fetching notifications from last ${range}h for user ${user_id}`,
+      `Fetching recent notifications for user ${user_id} (last ${hours}h)`,
     );
     return await this.notificationService.getRecentUserNotifications(
-      Number(user_id),
-      range,
+      user_id,
+      hours,
     );
   }
 
   @Delete(':id')
-  async remove(@Param('id') id: number) {
+  async remove(@Param('id', ParseIntPipe) id: number) {
     this.logger.log(`Deleting notification ${id}`);
-    await this.notificationService.remove(Number(id));
-    return { message: 'Notification deleted successfully' };
+    await this.notificationService.remove(id);
+    return {
+      success: true,
+      message: 'Notification deleted successfully',
+      notification_id: id,
+    };
   }
 
-  @Delete()
+  @Delete('cleanup/expired')
   async removeExpired() {
     this.logger.log('Removing expired notifications');
     await this.notificationService.removeExpired();
-    return { message: 'Expired notifications removed successfully' };
+    return {
+      success: true,
+      message: 'Expired notifications removed successfully',
+    };
   }
 }

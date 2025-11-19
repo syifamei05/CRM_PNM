@@ -40,18 +40,28 @@ export const useNotificationPage = ({ notifications, markAsRead, markAllAsRead, 
   const [showSettings, setShowSettings] = useState(false);
 
   const filteredNotifications = useMemo(() => {
+    const lowerSearchTerm = searchTerm.toLowerCase();
+
     return notifications.filter((notif) => {
       const matchesFilter = filter === 'all' || (filter === 'unread' && !notif.read) || (filter === 'read' && notif.read);
 
       const matchesCategory = categoryFilter === 'all' || notif.category === categoryFilter;
 
-      const matchesSearch = searchTerm === '' || notif.title?.toLowerCase().includes(searchTerm.toLowerCase()) || notif.message?.toLowerCase().includes(searchTerm.toLowerCase());
+      const matchesSearch = lowerSearchTerm === '' || notif.title?.toLowerCase().includes(lowerSearchTerm) || notif.message?.toLowerCase().includes(lowerSearchTerm);
 
       return matchesFilter && matchesCategory && matchesSearch;
     });
   }, [notifications, filter, categoryFilter, searchTerm]);
 
-  const categories = useMemo(() => [...new Set(notifications.map((n) => n.category).filter(Boolean))] as string[], [notifications]);
+  const categories = useMemo(() => {
+    const categorySet = new Set<string>();
+    notifications.forEach((n) => {
+      if (n.category) {
+        categorySet.add(n.category);
+      }
+    });
+    return Array.from(categorySet);
+  }, [notifications]);
 
   const getNotificationIcon = useCallback((type: string) => {
     switch (type) {
@@ -67,6 +77,17 @@ export const useNotificationPage = ({ notifications, markAsRead, markAllAsRead, 
         return { icon: 'Info', color: 'text-blue-500' };
     }
   }, []);
+
+  const notificationConfig = useMemo(
+    () => ({
+      success: { icon: 'CheckCircle', color: 'text-green-500', bgColor: 'bg-green-100 text-green-800 border-green-200 dark:bg-green-900/20 dark:text-green-300 dark:border-green-800' },
+      warning: { icon: 'AlertTriangle', color: 'text-yellow-500', bgColor: 'bg-yellow-100 text-yellow-800 border-yellow-200 dark:bg-yellow-900/20 dark:text-yellow-300 dark:border-yellow-800' },
+      error: { icon: 'AlertTriangle', color: 'text-red-500', bgColor: 'bg-red-100 text-red-800 border-red-200 dark:bg-red-900/20 dark:text-red-300 dark:border-red-800' },
+      system: { icon: 'Settings', color: 'text-blue-500', bgColor: 'bg-blue-100 text-blue-800 border-blue-200 dark:bg-blue-900/20 dark:text-blue-300 dark:border-blue-800' },
+      info: { icon: 'Info', color: 'text-blue-500', bgColor: 'bg-gray-100 text-gray-800 border-gray-200 dark:bg-gray-700 dark:text-gray-300 dark:border-gray-600' },
+    }),
+    []
+  );
 
   const getTypeColor = useCallback((type: string) => {
     switch (type) {
@@ -97,6 +118,7 @@ export const useNotificationPage = ({ notifications, markAsRead, markAllAsRead, 
   const handleMarkAllAsRead = useCallback(async () => {
     try {
       await markAllAsRead();
+      setSelectedNotifications([]);
     } catch (error) {
       console.error('Failed to mark all as read:', error);
     }
@@ -115,6 +137,8 @@ export const useNotificationPage = ({ notifications, markAsRead, markAllAsRead, 
   );
 
   const handleBulkDelete = useCallback(async () => {
+    if (selectedNotifications.length === 0) return;
+
     try {
       await Promise.all(selectedNotifications.map((id) => removeNotification(id)));
       setSelectedNotifications([]);
@@ -128,18 +152,17 @@ export const useNotificationPage = ({ notifications, markAsRead, markAllAsRead, 
   }, []);
 
   const handleSelectAll = useCallback(() => {
-    if (selectedNotifications.length === filteredNotifications.length) {
-      setSelectedNotifications([]);
-    } else {
-      setSelectedNotifications(filteredNotifications.map((n) => n.id));
-    }
-  }, [selectedNotifications.length, filteredNotifications]);
+    setSelectedNotifications((prev) => (prev.length === filteredNotifications.length ? [] : filteredNotifications.map((n) => n.id)));
+  }, [filteredNotifications]);
 
   const formatTime = useCallback((date: Date) => {
-    if (!date) return 'Unknown';
+    if (!(date instanceof Date) || isNaN(date.getTime())) {
+      return 'Unknown';
+    }
+
     const now = new Date();
-    const notificationDate = new Date(date);
-    const diff = now.getTime() - notificationDate.getTime();
+    const diff = now.getTime() - date.getTime();
+    
     const minutes = Math.floor(diff / 60000);
     const hours = Math.floor(diff / 3600000);
     const days = Math.floor(diff / 86400000);
@@ -148,7 +171,8 @@ export const useNotificationPage = ({ notifications, markAsRead, markAllAsRead, 
     if (minutes < 60) return `${minutes}m ago`;
     if (hours < 24) return `${hours}h ago`;
     if (days < 7) return `${days}d ago`;
-    return notificationDate.toLocaleDateString();
+    
+    return date.toLocaleDateString();
   }, []);
 
   return {

@@ -22,6 +22,7 @@ const create_notification_dto_1 = require("./dto/create-notification.dto");
 let NotificationGateway = NotificationGateway_1 = class NotificationGateway {
     notificationService;
     server;
+    userSockets = new Map();
     logger = new common_1.Logger(NotificationGateway_1.name);
     constructor(notificationService) {
         this.notificationService = notificationService;
@@ -31,20 +32,60 @@ let NotificationGateway = NotificationGateway_1 = class NotificationGateway {
     }
     handleDisconnect(client) {
         this.logger.log(`Client disconnected: ${client.id}`);
+        for (const [userId, sockets] of this.userSockets.entries()) {
+            const index = sockets.indexOf(client);
+            if (index > -1) {
+                sockets.splice(index, 1);
+                if (sockets.length === 0) {
+                    this.userSockets.delete(userId);
+                }
+            }
+        }
+    }
+    registerUserSocket(userId, client) {
+        if (!this.userSockets.has(userId)) {
+            this.userSockets.set(userId, []);
+        }
+        const userSockets = this.userSockets.get(userId);
+        if (userSockets) {
+            userSockets.push(client);
+        }
+        this.logger.log(`User ${userId} registered with socket ${client.id}`);
+    }
+    async handleGetUserNotifications(client, data) {
+        try {
+            const { notifications, total } = await this.notificationService.findAllForUser(data.user_id, data.options);
+            client.emit('userNotifications', { notifications, total });
+        }
+        catch (error) {
+            this.logger.error('Failed to get user notifications', error);
+            client.emit('error', { message: 'Failed to get notifications' });
+        }
     }
     sendNotificationToUser(userId, notification) {
-        this.server.emit('notification', notification);
-        this.logger.log(`📩 Sent notification to user ${userId}`);
+        const userSockets = this.userSockets.get(userId);
+        if (userSockets && userSockets.length > 0) {
+            userSockets.forEach((socket) => {
+                socket.emit('notification', notification);
+            });
+            this.logger.log(`📩 Sent notification to user ${userId} (${userSockets.length} sockets)`);
+        }
+        else {
+            this.logger.log(`📩 No active sockets for user ${userId}`);
+        }
     }
     sendNotificationToAll(notification) {
         this.server.emit('notification', notification);
         this.logger.log('📢 Broadcast notification to all connected clients');
     }
+    handleAuthenticate(client, userId) {
+        this.registerUserSocket(userId, client);
+        client.emit('authenticated', { success: true });
+        this.logger.log(`User ${userId} authenticated with socket ${client.id}`);
+    }
     async handleCreateNotification(client, data) {
         try {
             const notification = await this.notificationService.create(data);
-            this.sendNotificationToUser(notification.user_id, notification);
-            this.sendNotificationToAll(notification);
             client.emit('notificationCreated', notification);
         }
         catch (error) {
@@ -55,12 +96,31 @@ let NotificationGateway = NotificationGateway_1 = class NotificationGateway {
     async handleUpdateNotification(client, data) {
         try {
             const updated = await this.notificationService.update(data.notification_id, data.updates);
-            this.sendNotificationToUser(updated.user_id, updated);
-            this.sendNotificationToAll(updated);
+            client.emit('notificationUpdated', updated);
         }
         catch (error) {
             this.logger.error('Failed to update notification', error);
             client.emit('error', { message: 'Failed to update notification' });
+        }
+    }
+    async handleMarkAsRead(client, notification_id) {
+        try {
+            const updated = await this.notificationService.markAsRead(notification_id);
+            client.emit('notificationMarkedRead', updated);
+        }
+        catch (error) {
+            this.logger.error('Failed to mark notification as read', error);
+            client.emit('error', { message: 'Failed to mark as read' });
+        }
+    }
+    async handleMarkAllAsRead(client, user_id) {
+        try {
+            await this.notificationService.markAllAsRead(user_id);
+            client.emit('allNotificationsMarkedRead', { success: true });
+        }
+        catch (error) {
+            this.logger.error('Failed to mark all as read', error);
+            client.emit('error', { message: 'Failed to mark all as read' });
         }
     }
 };
@@ -69,6 +129,18 @@ __decorate([
     (0, websockets_1.WebSocketServer)(),
     __metadata("design:type", socket_io_1.Server)
 ], NotificationGateway.prototype, "server", void 0);
+__decorate([
+    (0, websockets_1.SubscribeMessage)('getUserNotifications'),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [socket_io_1.Socket, Object]),
+    __metadata("design:returntype", Promise)
+], NotificationGateway.prototype, "handleGetUserNotifications", null);
+__decorate([
+    (0, websockets_1.SubscribeMessage)('authenticate'),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [socket_io_1.Socket, Number]),
+    __metadata("design:returntype", void 0)
+], NotificationGateway.prototype, "handleAuthenticate", null);
 __decorate([
     (0, websockets_1.SubscribeMessage)('createNotification'),
     __metadata("design:type", Function),
@@ -81,6 +153,18 @@ __decorate([
     __metadata("design:paramtypes", [socket_io_1.Socket, Object]),
     __metadata("design:returntype", Promise)
 ], NotificationGateway.prototype, "handleUpdateNotification", null);
+__decorate([
+    (0, websockets_1.SubscribeMessage)('markAsRead'),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [socket_io_1.Socket, Number]),
+    __metadata("design:returntype", Promise)
+], NotificationGateway.prototype, "handleMarkAsRead", null);
+__decorate([
+    (0, websockets_1.SubscribeMessage)('markAllAsRead'),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [socket_io_1.Socket, Number]),
+    __metadata("design:returntype", Promise)
+], NotificationGateway.prototype, "handleMarkAllAsRead", null);
 exports.NotificationGateway = NotificationGateway = NotificationGateway_1 = __decorate([
     (0, websockets_1.WebSocketGateway)({
         cors: { origin: '*' },

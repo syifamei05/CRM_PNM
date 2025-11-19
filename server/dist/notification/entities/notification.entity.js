@@ -39,16 +39,17 @@ __decorate([
     __metadata("design:type", Number)
 ], Notification.prototype, "notification_id", void 0);
 __decorate([
-    (0, typeorm_1.Column)(),
+    (0, typeorm_1.Column)({ nullable: true }),
     (0, typeorm_1.Index)(),
-    __metadata("design:type", Number)
+    __metadata("design:type", Object)
 ], Notification.prototype, "user_id", void 0);
 __decorate([
     (0, typeorm_1.ManyToOne)(() => user_entity_1.User, (user) => user.notifications, {
         onDelete: 'CASCADE',
+        nullable: true,
     }),
     (0, typeorm_1.JoinColumn)({ name: 'user_id' }),
-    __metadata("design:type", user_entity_1.User)
+    __metadata("design:type", Object)
 ], Notification.prototype, "user", void 0);
 __decorate([
     (0, typeorm_1.Column)({

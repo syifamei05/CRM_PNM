@@ -20,6 +20,7 @@ export declare class NotificationService {
     constructor(notificationRepository: Repository<Notification>, gateway: INotificationGateway);
     findAll(): Promise<Notification[]>;
     findOne(notification_id: number): Promise<Notification>;
+    notifyUserStatusChange(userId: number, userName: string, status: 'online' | 'offline'): Promise<Notification>;
     create(createDto: CreateNotificationDto): Promise<Notification>;
     update(notification_id: number, updateNotificationDto: UpdateNotificationDto): Promise<Notification>;
     markAllAsRead(user_id: number): Promise<void>;
@@ -40,6 +41,5 @@ export declare class NotificationService {
         notifications: Notification[];
         total: number;
     }>;
-    notifyUserStatusChange(userId: number, userName: string, status: 'online' | 'offline'): Promise<void>;
     getRecentUserNotifications(user_id: number, hours?: number): Promise<Notification[]>;
 }

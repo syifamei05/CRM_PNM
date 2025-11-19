@@ -10,8 +10,9 @@ import { NotificationType } from '../entities/notification.entity';
 
 export class CreateNotificationDto {
   @IsNumber()
+  @IsOptional()
   @Type(() => Number)
-  userId: number; // ✅ tipe number agar cocok dengan entity.user_id
+  userId?: number; // ✅ tipe number agar cocok dengan entity.user_id
 
   @IsEnum(NotificationType)
   type: NotificationType = NotificationType.SYSTEM;

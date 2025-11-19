@@ -1,6 +1,6 @@
 import { NotificationType } from '../entities/notification.entity';
 export declare class CreateNotificationDto {
-    userId: number;
+    userId?: number;
     type: NotificationType;
     title: string;
     message: string;

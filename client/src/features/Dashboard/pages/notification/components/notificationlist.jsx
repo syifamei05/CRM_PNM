@@ -1,17 +1,19 @@
 import { motion, AnimatePresence } from 'framer-motion';
 import { BellOff, Loader2, RefreshCw, CheckSquare, Square } from 'lucide-react';
-import NotificationItem from './notificationitem';
+import NotificationItem from './NotificationItem'; // Pastikan import path benar
 import { useState } from 'react';
 
 export default function NotificationList({ darkMode, notifications, selectedNotifications, getNotificationIcon, getTypeColor, formatTime, onSelectNotification, onMarkAsRead, onDelete, onRefresh, isLoading = false, isRefreshing = false }) {
-  const [localSelected, setLocalSelected] = useState([]);
-
   const cardClass = `rounded-2xl border transition-colors duration-300 ${darkMode ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'}`;
 
-  const handleRefresh = () => {
+  const handleRefresh = async () => {
     console.log('🔄 Refreshing notifications...');
-    setLocalSelected([]);
-    onRefresh?.();
+    try {
+      await onRefresh?.();
+      console.log('✅ Refresh completed');
+    } catch (error) {
+      console.error('❌ Refresh failed:', error);
+    }
   };
 
   const handleSelectNotification = (notificationId, isSelected) => {
@@ -30,7 +32,6 @@ export default function NotificationList({ darkMode, notifications, selectedNoti
 
   const handleSelectAll = () => {
     if (selectedNotifications.length === notifications.length) {
-
       console.log('❌ Deselecting all notifications');
       onSelectNotification([]);
     } else {
@@ -40,18 +41,32 @@ export default function NotificationList({ darkMode, notifications, selectedNoti
     }
   };
 
-  const handleMarkAsRead = (notificationId) => {
+  const handleMarkAsRead = async (notificationId) => {
     console.log('📝 Marking as read:', notificationId);
-    onMarkAsRead(notificationId);
+    try {
+      await onMarkAsRead(notificationId);
+      console.log('✅ Marked as read:', notificationId);
+    } catch (error) {
+      console.error('❌ Failed to mark as read:', error);
+    }
   };
 
-  const handleDelete = (notificationId) => {
+  const handleDelete = async (notificationId) => {
     console.log('🗑️ Deleting notification:', notificationId);
+
+    // Remove from selection first
     const newSelected = selectedNotifications.filter((id) => id !== notificationId);
     if (newSelected.length !== selectedNotifications.length) {
       onSelectNotification(newSelected);
     }
-    onDelete(notificationId);
+
+    try {
+      await onDelete(notificationId);
+      console.log('✅ Deleted notification:', notificationId);
+    } catch (error) {
+      console.error('❌ Failed to delete notification:', error);
+      alert('Failed to delete notification. Please try again.');
+    }
   };
 
   if (isLoading && notifications.length === 0) {
@@ -132,6 +147,7 @@ export default function NotificationList({ darkMode, notifications, selectedNoti
           {isRefreshing ? 'Syncing...' : 'Sync'}
         </button>
       </div>
+
       {selectedNotifications.length > 0 && (
         <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} className={`p-3 rounded-lg ${darkMode ? 'bg-blue-900/20 text-blue-300' : 'bg-blue-50 text-blue-700'}`}>
           <div className="text-sm font-medium">
@@ -152,7 +168,7 @@ export default function NotificationList({ darkMode, notifications, selectedNoti
               getNotificationIcon={getNotificationIcon}
               getTypeColor={getTypeColor}
               formatTime={formatTime}
-              onSelect={handleSelectNotification} 
+              onSelect={handleSelectNotification}
               onMarkAsRead={handleMarkAsRead}
               onDelete={handleDelete}
             />
@@ -162,7 +178,7 @@ export default function NotificationList({ darkMode, notifications, selectedNoti
 
       <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.5 }} className={`text-center pt-4 border-t ${darkMode ? 'border-gray-700 text-gray-400' : 'border-gray-200 text-gray-500'}`}>
         <p className="text-sm">
-          Last updated: {formatTime(new Date())}
+          Showing {notifications.length} notification{notifications.length !== 1 ? 's' : ''}
           {notifications.some((n) => n.metadata?.is_fallback) && <span className="ml-2 text-yellow-600 dark:text-yellow-400">• Some notifications are stored locally</span>}
           {selectedNotifications.length > 0 && <span className="ml-2 text-blue-600 dark:text-blue-400">• {selectedNotifications.length} selected</span>}
         </p>

@@ -3,7 +3,7 @@ import { Notification, useNotificationStore } from '../stores/notification.store
 
 export interface BackendNotification {
   notification_id: number;
-  user_id: number | null; 
+  user_id: number | null;
   type: 'info' | 'success' | 'warning' | 'error';
   title: string;
   message: string;
@@ -15,7 +15,7 @@ export interface BackendNotification {
 }
 
 export interface CreateNotificationDto {
-  userId: number | null; 
+  userId?: number | null;
   type: 'info' | 'success' | 'warning' | 'error';
   title: string;
   message: string;
@@ -38,21 +38,29 @@ export class NotificationService {
   }
 
   private static async handleResponse<T>(response: Response): Promise<T> {
-    const text = await response.text();
-    let data: any = null;
-
-    try {
-      data = text ? JSON.parse(text) : null;
-    } catch {
-      data = text;
-    }
-
     if (!response.ok) {
-      const message = (data && (data.message || data.error)) || `HTTP ${response.status}: ${response.statusText}`;
+      const errorText = await response.text();
+      let errorData: any = null;
+
+      try {
+        errorData = errorText ? JSON.parse(errorText) : null;
+      } catch {
+        errorData = { message: errorText };
+      }
+
+      const message = errorData?.message || errorData?.error || `HTTP ${response.status}: ${response.statusText}`;
       throw new Error(message);
     }
 
-    return data as T;
+    if (response.status === 204 || response.headers.get('content-length') === '0') {
+      return {} as T;
+    }
+
+    return (await response.json()) as T;
+  }
+
+  private static isTemporaryId(id: string): boolean {
+    return !id || id.startsWith('temp-') || isNaN(Number(id.replace('temp-', '')));
   }
 
   static async getUserNotifications(userId: string, options?: { unreadOnly?: boolean; limit?: number; page?: number }): Promise<{ notifications: Notification[]; total: number }> {
@@ -103,7 +111,7 @@ export class NotificationService {
       if (options?.limit) params.append('limit', options.limit.toString());
       if (options?.page) params.append('page', options.page.toString());
 
-      const url = `${this.baseUrl}/broadcast${params.toString() ? `?${params.toString()}` : ''}`;
+      const url = `${this.baseUrl}/broadcast?${params.toString()}`;
       const response = await fetch(url, {
         method: 'GET',
         headers: {
@@ -128,56 +136,7 @@ export class NotificationService {
       return result;
     } catch (error) {
       this.errorLog('getBroadcastNotifications', error, { options });
-
-      try {
-        this.debugLog('Trying fallback for broadcast notifications');
-
-        const allResponse = await fetch(`${this.baseUrl}?limit=${options?.limit || 100}`, {
-          method: 'GET',
-          headers: {
-            Accept: 'application/json',
-            Authorization: `Bearer ${localStorage.getItem('access_token')}`,
-          },
-          credentials: 'include',
-        });
-
-        const allData = await this.handleResponse<{ notifications: BackendNotification[]; total: number }>(allResponse);
-
-        const broadcastNotifications = (allData.notifications || []).filter((notif) => notif.user_id === null || notif.user_id === undefined);
-
-        const result = {
-          notifications: broadcastNotifications.map((notif) => this.convertFromBackend(notif)),
-          total: broadcastNotifications.length,
-        };
-
-        this.debugLog('Broadcast fallback success', {
-          count: result.notifications.length,
-        });
-
-        return result;
-      } catch (fallbackError) {
-        this.errorLog('Broadcast fallback failed', fallbackError);
-
-        try {
-          const store = useNotificationStore.getState();
-          const broadcastNotifications = store.getBroadcastNotifications();
-
-          this.debugLog('Using local store fallback', {
-            count: broadcastNotifications.length,
-          });
-
-          return {
-            notifications: broadcastNotifications,
-            total: broadcastNotifications.length,
-          };
-        } catch (storeError) {
-          this.errorLog('Local store fallback also failed', storeError);
-          return {
-            notifications: [],
-            total: 0,
-          };
-        }
-      }
+      return { notifications: [], total: 0 };
     }
   }
 
@@ -266,26 +225,20 @@ export class NotificationService {
     }
   }
 
-
   static async createNotification(notificationData: CreateNotificationDto): Promise<BackendNotification> {
     try {
       this.debugLog('createNotification', notificationData);
 
-      const cleanPayload: any = {
-        userId: notificationData.userId,
+      // ✅ Payload sesuai dengan backend CreateNotificationDto
+      const payload = {
+        userId: notificationData.userId, // ✅ Sesuai backend (bisa null/undefined)
         type: notificationData.type,
         title: notificationData.title,
         message: notificationData.message,
-        category: notificationData.category || null,
-        metadata: notificationData.metadata || null,
-        expires_at: notificationData.expiresAt?.toISOString() || null,
+        category: notificationData.category,
+        metadata: notificationData.metadata,
+        expiresAt: notificationData.expiresAt?.toISOString(), // ✅ Sesuai backend
       };
-
-      Object.keys(cleanPayload).forEach((key) => {
-        if (cleanPayload[key] === undefined) {
-          delete cleanPayload[key];
-        }
-      });
 
       const response = await fetch(this.baseUrl, {
         method: 'POST',
@@ -295,7 +248,7 @@ export class NotificationService {
           Authorization: `Bearer ${localStorage.getItem('access_token')}`,
         },
         credentials: 'include',
-        body: JSON.stringify(cleanPayload),
+        body: JSON.stringify(payload),
       });
 
       const result = await this.handleResponse<BackendNotification>(response);
@@ -304,20 +257,6 @@ export class NotificationService {
         id: result.notification_id,
         userId: notificationData.userId,
       });
-
-      if (notificationData.userId) {
-        setTimeout(() => {
-          this.syncWithBackend(notificationData.userId!.toString())
-            .then(() => this.debugLog('Auto-sync completed', { userId: notificationData.userId }))
-            .catch((err) => this.errorLog('Auto-sync failed', err));
-        }, 500);
-      } else {
-        setTimeout(() => {
-          this.syncBroadcastNotifications()
-            .then(() => this.debugLog('Broadcast sync completed'))
-            .catch((err) => this.errorLog('Broadcast sync failed', err));
-        }, 500);
-      }
 
       return result;
     } catch (error) {
@@ -334,14 +273,13 @@ export class NotificationService {
         userId: userId,
         type: 'success',
         title: 'Login Successful',
-        message: `Welcome back, ${username}! You have successfully logged into RIMS.`,
+        message: `Welcome back, ${username}! You have successfully logged in.`,
         category: 'security',
         metadata: {
           login_time: new Date().toISOString(),
-          user_agent: navigator.userAgent,
           activity_type: 'login',
-          ip_address: 'system',
           user_id: userId,
+          ip_address: 'system',
           username: username,
         },
       };
@@ -357,7 +295,8 @@ export class NotificationService {
     } catch (error) {
       this.errorLog('createLoginNotification', error, { userId, username });
 
-      this.createLocalFallbackNotification(userId, username, 'login');
+      console.warn('Login notification failed to send to backend. Skipping local fallback.');
+
       throw error;
     }
   }
@@ -367,18 +306,16 @@ export class NotificationService {
       this.debugLog('createLogoutNotification', { userId, username });
 
       const notificationData: CreateNotificationDto = {
-        userId: userId,
+        userId: userId, // ✅ Personal notification
         type: 'info',
         title: 'Logout Successful',
-        message: `You have successfully logged out from RIMS. See you soon, ${username}!`,
+        message: `You have successfully logged out. See you soon, ${username}!`,
         category: 'security',
         metadata: {
           logout_time: new Date().toISOString(),
           activity_type: 'logout',
           user_id: userId,
           username: username,
-          user_agent: navigator.userAgent,
-          timestamp: new Date().toISOString(),
         },
       };
 
@@ -393,42 +330,59 @@ export class NotificationService {
     } catch (error) {
       this.errorLog('createLogoutNotification', error, { userId, username });
 
-      this.createLocalFallbackNotification(userId, username, 'logout');
+      console.warn('Logout notification failed to send to backend. Skipping local fallback.');
+
       throw error;
     }
   }
 
-
-  static async createUserStatusBroadcast(userId: number, username: string, action: 'login' | 'logout'): Promise<BackendNotification> {
+  static async createUserStatusBroadcast(userId: number, username: string, status: 'online' | 'offline'): Promise<BackendNotification> {
     try {
-      this.debugLog('createUserStatusBroadcast', { userId, username, action });
+      this.debugLog('createUserStatusBroadcast', { userId, username, status });
 
-      const notificationData: CreateNotificationDto = {
-        userId: null,
-        type: 'info',
-        title: action === 'login' ? 'User Logged In' : 'User Logged Out',
-        message: action === 'login' ? `User ${username} has logged into the system.` : `User ${username} has logged out from the system.`,
-        category: 'system',
-        metadata: {
-          timestamp: new Date().toISOString(),
-          activity_type: 'user_status',
-          user_id: userId,
-          user_name: username,
-          action: action,
-        },
+      const payload = {
+        userId: userId,
+        userName: username,
+        status: status,
       };
 
-      const result = await this.createNotification(notificationData);
+      const response = await fetch(`${this.baseUrl}/user-status`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Accept: 'application/json',
+          Authorization: `Bearer ${localStorage.getItem('access_token')}`,
+        },
+        credentials: 'include',
+        body: JSON.stringify(payload),
+      });
+
+      const result = await this.handleResponse<BackendNotification>(response);
 
       this.debugLog('createUserStatusBroadcast success', {
         id: result.notification_id,
-        action: action,
+        status: status,
       });
 
       return result;
     } catch (error) {
-      this.errorLog('createUserStatusBroadcast', error, { userId, username, action });
-      throw error;
+      this.errorLog('createUserStatusBroadcast', error, { userId, username, status });
+
+      const notificationData: CreateNotificationDto = {
+        userId: null,
+        type: 'system',
+        title: 'User Status Update',
+        message: `${username} is now ${status}`,
+        category: 'user-status',
+        metadata: {
+          userId: userId,
+          userName: username,
+          status: status,
+          timestamp: new Date().toISOString(),
+        },
+      };
+
+      return await this.createNotification(notificationData);
     }
   }
 
@@ -463,14 +417,24 @@ export class NotificationService {
     }
   }
 
-  // ✅ FIX: Improved markAsRead dengan validasi yang lebih baik
   static async markAsRead(notificationId: string): Promise<BackendNotification> {
     try {
       this.debugLog('markAsRead', { notificationId });
 
-      // Validasi notificationId
-      if (!notificationId || notificationId === 'NaN' || isNaN(Number(notificationId))) {
-        throw new Error(`Invalid notification ID: ${notificationId}`);
+      if (this.isTemporaryId(notificationId)) {
+        this.debugLog('markAsRead - skipping backend for temporary ID', { notificationId });
+        return {
+          notification_id: 0,
+          user_id: null,
+          type: 'info',
+          title: 'Local Notification',
+          message: 'This is a local notification',
+          read: true,
+          metadata: null,
+          category: null,
+          created_at: new Date().toISOString(),
+          expires_at: null,
+        };
       }
 
       const response = await fetch(`${this.baseUrl}/${notificationId}/read`, {
@@ -493,7 +457,6 @@ export class NotificationService {
     }
   }
 
-  // ✅ FIX: Improved markAllAsRead
   static async markAllAsRead(userId: string): Promise<void> {
     try {
       this.debugLog('markAllAsRead', { userId });
@@ -518,13 +481,16 @@ export class NotificationService {
     }
   }
 
-  // ✅ FIX: Improved deleteNotification
   static async deleteNotification(notificationId: string): Promise<void> {
     try {
       this.debugLog('deleteNotification', { notificationId });
 
-      // Validasi notificationId
-      if (!notificationId || notificationId === 'NaN' || isNaN(Number(notificationId))) {
+      if (!notificationId || notificationId.startsWith('temp-') || isNaN(Number(notificationId))) {
+        this.debugLog('deleteNotification - skipping backend for temporary ID', { notificationId });
+        return;
+      }
+
+      if (!notificationId || isNaN(Number(notificationId))) {
         throw new Error(`Invalid notification ID: ${notificationId}`);
       }
 
@@ -547,7 +513,6 @@ export class NotificationService {
     }
   }
 
-  // ✅ FIX: Improved syncWithBackend
   static async syncWithBackend(userId: string): Promise<Notification[]> {
     try {
       this.debugLog('syncWithBackend', { userId });
@@ -555,36 +520,20 @@ export class NotificationService {
       const { notifications: backendNotifications } = await this.getAllNotifications(userId);
       const store = useNotificationStore.getState();
 
-      // Filter valid notifications
-      const validNotifications = backendNotifications.filter((notif) => notif.id && notif.id !== 'NaN' && !isNaN(Number(notif.id.replace('temp-', ''))));
-
-      store.syncWithBackendData(validNotifications);
+      store.syncWithBackendData(backendNotifications);
 
       this.debugLog('syncWithBackend success', {
         userId,
-        backendCount: backendNotifications.length,
-        validCount: validNotifications.length,
-        storeCount: store.notifications.length,
+        count: backendNotifications.length,
       });
 
-      return validNotifications;
+      return backendNotifications;
     } catch (error) {
       this.errorLog('syncWithBackend', error, { userId });
-
-      // Return local notifications sebagai fallback
-      const store = useNotificationStore.getState();
-      const localNotifications = store.getNotificationsByUser(userId);
-
-      this.debugLog('Using local notifications as fallback', {
-        userId,
-        localCount: localNotifications.length,
-      });
-
-      return localNotifications;
+      return [];
     }
   }
 
-  // ✅ FIX: Improved syncBroadcastNotifications
   static async syncBroadcastNotifications(): Promise<Notification[]> {
     try {
       this.debugLog('syncBroadcastNotifications');
@@ -592,7 +541,6 @@ export class NotificationService {
       const { notifications: broadcastNotifications } = await this.getBroadcastNotifications();
       const store = useNotificationStore.getState();
 
-      // Tambahkan broadcast notifications ke store
       let addedCount = 0;
       broadcastNotifications.forEach((notif) => {
         if (!store.notifications.find((n) => n.id === notif.id)) {
@@ -613,7 +561,6 @@ export class NotificationService {
     }
   }
 
-  // ✅ FIX: Improved deleteAllUserNotifications
   static async deleteAllUserNotifications(userId: string): Promise<void> {
     try {
       this.debugLog('deleteAllUserNotifications', { userId });
@@ -637,7 +584,7 @@ export class NotificationService {
     }
   }
 
-  static startPolling(userId: string, interval: number = 15000): number {
+  static startPolling(userId: string, interval: number = 30000): number {
     this.debugLog('startPolling', { userId, interval });
 
     this.stopPolling(userId);
@@ -645,15 +592,36 @@ export class NotificationService {
     const intervalId = window.setInterval(async () => {
       try {
         await this.syncWithBackend(userId);
+        await this.getUnreadCount(userId); // Update unread count
       } catch (error) {
         this.errorLog('Polling error', error, { userId });
       }
     }, interval);
 
     this.pollingIntervals.set(userId, intervalId);
-
-    this.debugLog('Polling started', { userId, intervalId });
     return intervalId;
+  }
+  static async getUnreadCount(userId: string): Promise<number> {
+    try {
+      this.debugLog('getUnreadCount', { userId });
+
+      const response = await fetch(`${this.baseUrl}/user/${userId}/unread-count`, {
+        method: 'GET',
+        headers: {
+          Accept: 'application/json',
+          Authorization: `Bearer ${localStorage.getItem('access_token')}`,
+        },
+        credentials: 'include',
+      });
+
+      const data = await this.handleResponse<{ count: number }>(response);
+
+      this.debugLog('getUnreadCount success', { userId, count: data.count });
+      return data.count;
+    } catch (error) {
+      this.errorLog('getUnreadCount', error, { userId });
+      return 0;
+    }
   }
 
   static stopPolling(userId: string): void {
@@ -661,7 +629,7 @@ export class NotificationService {
     if (intervalId) {
       clearInterval(intervalId);
       this.pollingIntervals.delete(userId);
-      this.debugLog('stopPolling', { userId, intervalId });
+      this.debugLog('stopPolling', { userId });
     }
   }
 
@@ -675,15 +643,13 @@ export class NotificationService {
   }
 
   private static convertFromBackend(backendNotif: BackendNotification): Notification {
-    const validId = backendNotif.notification_id && !isNaN(backendNotif.notification_id) && backendNotif.notification_id > 0 ? backendNotif.notification_id.toString() : `temp-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
-
     return {
-      id: validId,
+      id: backendNotif.notification_id.toString(),
       userId: backendNotif.user_id ? backendNotif.user_id.toString() : 'broadcast',
       type: backendNotif.type,
-      title: backendNotif.title || 'No Title',
-      message: backendNotif.message || 'No Message',
-      read: Boolean(backendNotif.read),
+      title: backendNotif.title,
+      message: backendNotif.message,
+      read: backendNotif.read,
       category: backendNotif.category || undefined,
       timestamp: new Date(backendNotif.created_at),
       metadata: backendNotif.metadata || {},
@@ -695,8 +661,8 @@ export class NotificationService {
     try {
       this.debugLog('cleanupExpiredNotifications');
 
-      const response = await fetch(`${this.baseUrl}/cleanup-expired`, {
-        method: 'POST',
+      const response = await fetch(`${this.baseUrl}/cleanup/expired`, {
+        method: 'DELETE',
         headers: {
           Authorization: `Bearer ${localStorage.getItem('access_token')}`,
         },
@@ -719,22 +685,14 @@ export class NotificationService {
     console.log('🔔 [NotificationService] Current State Debug:');
     console.log('Total notifications:', store.notifications.length);
     console.log('Unread count:', store.unreadCount);
-    console.log('Last updated:', store.lastUpdated);
 
     if (userId) {
       const userNotifications = store.getNotificationsByUser(userId);
       const broadcastNotifications = store.getBroadcastNotifications();
-      const allForUser = store.getAllNotificationsForUser(userId);
 
       console.log(`Notifications for user ${userId}:`, userNotifications.length);
       console.log(`Broadcast notifications:`, broadcastNotifications.length);
-      console.log(`All notifications for user:`, allForUser.length);
-
-      const logoutNotifications = allForUser.filter((n) => n.metadata?.activity_type === 'logout' || n.title.toLowerCase().includes('logout'));
-      console.log('Logout notifications found:', logoutNotifications);
     }
-
-    console.log('All notifications:', store.notifications);
   }
 
   static async testLogoutNotification(userId: number, username: string) {
@@ -745,7 +703,6 @@ export class NotificationService {
       store.clearAll();
 
       await this.createLogoutNotification(userId, username);
-
 
       setTimeout(() => {
         this.debugCurrentState(userId.toString());

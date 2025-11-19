@@ -8,8 +8,8 @@ export declare enum NotificationType {
 }
 export declare class Notification {
     notification_id: number;
-    user_id: number;
-    user: User;
+    user_id: number | null;
+    user: User | null;
     type: NotificationType;
     title: string;
     message: string;

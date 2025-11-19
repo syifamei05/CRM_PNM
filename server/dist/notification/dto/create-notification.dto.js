@@ -25,6 +25,7 @@ class CreateNotificationDto {
 exports.CreateNotificationDto = CreateNotificationDto;
 __decorate([
     (0, class_validator_1.IsNumber)(),
+    (0, class_validator_1.IsOptional)(),
     (0, class_transformer_1.Type)(() => Number),
     __metadata("design:type", Number)
 ], CreateNotificationDto.prototype, "userId", void 0);

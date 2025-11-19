@@ -1,10 +1,9 @@
-
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 
 export interface Notification {
   id: string;
-  userId: string; 
+  userId: string;
   type: 'info' | 'success' | 'warning' | 'error';
   title: string;
   message: string;
@@ -23,6 +22,7 @@ interface NotificationState {
   notifications: Notification[];
   unreadCount: number;
   lastUpdated: Date;
+  _syncCounter: number; // ✅ Debug counter
 
   addNotification: (notification: Omit<Notification, 'id' | 'timestamp' | 'read'> & { id?: string }) => void;
   markAsRead: (id: string) => void;
@@ -50,8 +50,9 @@ const validateNotificationId = (id: string | number | undefined): string => {
   }
 
   const idStr = id.toString();
+  const numericId = idStr.replace('temp-', '');
 
-  if (idStr === 'NaN' || idStr === 'null' || idStr === 'undefined' || isNaN(Number(idStr.replace('temp-', '')))) {
+  if (idStr === 'NaN' || idStr === 'null' || idStr === 'undefined' || isNaN(Number(numericId))) {
     return `temp-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
   }
 
@@ -73,13 +74,16 @@ export const useNotificationStore = create<NotificationState>()(
       notifications: [],
       unreadCount: 0,
       lastUpdated: new Date(),
+      _syncCounter: 0, // ✅ Debug counter
 
       addNotification: (notification) => {
         const validId = validateNotificationId(notification.id);
+        const validUserId = validateUserId(notification.userId);
 
         const newNotification: Notification = {
           ...notification,
           id: validId,
+          userId: validUserId,
           timestamp: new Date(),
           read: false,
         };
@@ -87,7 +91,7 @@ export const useNotificationStore = create<NotificationState>()(
         set((state) => {
           const exists = state.notifications.find((n) => n.id === newNotification.id);
           if (exists) {
-            console.log(' Notification already exists:', newNotification.id);
+            console.log('⏭️ Notification already exists, skipping:', newNotification.id);
             return state;
           }
 
@@ -95,7 +99,6 @@ export const useNotificationStore = create<NotificationState>()(
             id: newNotification.id,
             title: newNotification.title,
             userId: newNotification.userId,
-            type: newNotification.type,
           });
 
           const newNotifications = [newNotification, ...state.notifications];
@@ -110,56 +113,80 @@ export const useNotificationStore = create<NotificationState>()(
           };
         });
 
-        setTimeout(() => {
-          const event = new CustomEvent('notificationAdded', {
-            detail: { notification: newNotification },
-          });
-          window.dispatchEvent(event);
-        }, 50);
+        // ✅ REMOVE EVENT untuk sementara - ini bisa cause loop
+        // setTimeout(() => {
+        //   const event = new CustomEvent('notificationAdded', {
+        //     detail: { notification: newNotification },
+        //   });
+        //   window.dispatchEvent(event);
+        // }, 50);
       },
 
       markAsRead: (id: string) => {
         const validId = validateNotificationId(id);
-        if (validId.startsWith('temp-')) {
-          console.warn('⚠️ Using temporary ID for markAsRead:', validId);
-        }
 
         set((state) => {
           const updated = state.notifications.map((n) => (n.id === validId ? { ...n, read: true } : n));
 
+          const newUnreadCount = updated.filter((n) => !n.read).length;
+
+          // ✅ Skip update jika tidak ada perubahan
+          if (state.unreadCount === newUnreadCount) {
+            return state;
+          }
+
+          console.log('📖 Marking as read:', validId);
+
           return {
             notifications: updated,
-            unreadCount: updated.filter((n) => !n.read).length,
+            unreadCount: newUnreadCount,
             lastUpdated: new Date(),
           };
         });
 
-        setTimeout(() => {
-          const event = new CustomEvent('notificationRead', { detail: { id: validId } });
-          window.dispatchEvent(event);
-        }, 50);
+        // ✅ REMOVE EVENT untuk sementara
+        // setTimeout(() => {
+        //   const event = new CustomEvent('notificationRead', {
+        //     detail: { id: validId },
+        //   });
+        //   window.dispatchEvent(event);
+        // }, 50);
       },
 
       markAllAsRead: () => {
-        set((state) => ({
-          notifications: state.notifications.map((n) => ({ ...n, read: true })),
-          unreadCount: 0,
-          lastUpdated: new Date(),
-        }));
+        set((state) => {
+          const hasUnread = state.notifications.some((n) => !n.read);
+          if (!hasUnread) {
+            return state;
+          }
 
-        setTimeout(() => {
-          const event = new CustomEvent('allNotificationsRead');
-          window.dispatchEvent(event);
-        }, 50);
+          console.log('📖 Marking all as read');
+
+          return {
+            notifications: state.notifications.map((n) => ({ ...n, read: true })),
+            unreadCount: 0,
+            lastUpdated: new Date(),
+          };
+        });
+
+        // ✅ REMOVE EVENT untuk sementara
+        // setTimeout(() => {
+        //   const event = new CustomEvent('allNotificationsRead');
+        //   window.dispatchEvent(event);
+        // }, 50);
       },
 
       removeNotification: (id: string) => {
         const validId = validateNotificationId(id);
-        if (validId.startsWith('temp-')) {
-          console.warn('⚠️ Using temporary ID for removeNotification:', validId);
-        }
 
         set((state) => {
+          const exists = state.notifications.find((n) => n.id === validId);
+          if (!exists) {
+            return state;
+          }
+
+          console.log('🗑️ Removing notification:', validId);
+
           const remaining = state.notifications.filter((n) => n.id !== validId);
           return {
             notifications: remaining,
@@ -168,18 +195,22 @@ export const useNotificationStore = create<NotificationState>()(
           };
         });
 
-        setTimeout(() => {
-          const event = new CustomEvent('notificationRemoved', { detail: { id: validId } });
-          window.dispatchEvent(event);
-        }, 50);
+        // ✅ REMOVE EVENT untuk sementara
+        // setTimeout(() => {
+        //   const event = new CustomEvent('notificationRemoved', { detail: { id: validId } });
+        //   window.dispatchEvent(event);
+        // }, 50);
       },
 
-      clearAll: () =>
+      clearAll: () => {
+        console.log('🧹 Clearing all notifications');
         set({
           notifications: [],
           unreadCount: 0,
           lastUpdated: new Date(),
-        }),
+          _syncCounter: 0,
+        });
+      },
 
       getNotificationsByUser: (userId: string) => {
         return get().notifications.filter((n) => n.userId === userId);
@@ -191,11 +222,17 @@ export const useNotificationStore = create<NotificationState>()(
 
       recalcUnread: () => {
         const unread = get().notifications.filter((n) => !n.read).length;
-        set({ unreadCount: unread });
+        set((state) => {
+          if (state.unreadCount === unread) return state;
+          return { unreadCount: unread };
+        });
       },
 
       markAllAsReadForUser: (userId: string) => {
         set((state) => {
+          const hasUnreadForUser = state.notifications.some((n) => n.userId === userId && !n.read);
+          if (!hasUnreadForUser) return state;
+
           const updated = state.notifications.map((n) => (n.userId === userId ? { ...n, read: true } : n));
           return {
             notifications: updated,
@@ -207,6 +244,9 @@ export const useNotificationStore = create<NotificationState>()(
 
       removeAllForUser: (userId: string) => {
         set((state) => {
+          const hasNotificationsForUser = state.notifications.some((n) => n.userId === userId);
+          if (!hasNotificationsForUser) return state;
+
           const remaining = state.notifications.filter((n) => n.userId !== userId);
           return {
             notifications: remaining,
@@ -219,10 +259,15 @@ export const useNotificationStore = create<NotificationState>()(
       updateNotification: (id, updates) => {
         const validId = validateNotificationId(id);
 
-        set((state) => ({
-          notifications: state.notifications.map((n) => (n.id === validId ? { ...n, ...updates } : n)),
-          lastUpdated: new Date(),
-        }));
+        set((state) => {
+          const existing = state.notifications.find((n) => n.id === validId);
+          if (!existing) return state;
+
+          return {
+            notifications: state.notifications.map((n) => (n.id === validId ? { ...n, ...updates } : n)),
+            lastUpdated: new Date(),
+          };
+        });
       },
 
       getNotificationsByCategory: (userId, category) => {
@@ -255,17 +300,42 @@ export const useNotificationStore = create<NotificationState>()(
             return new Date(n.expires_at) > now;
           });
 
-          console.log(`🧹 Cleaned up ${state.notifications.length - validNotifications.length} expired notifications`);
-
-          return {
-            notifications: validNotifications,
-            unreadCount: validNotifications.filter((n) => !n.read).length,
-            lastUpdated: new Date(),
-          };
+          const removedCount = state.notifications.length - validNotifications.length;
+          if (removedCount > 0) {
+            console.log(`🧹 Cleaned up ${removedCount} expired notifications`);
+            return {
+              notifications: validNotifications,
+              unreadCount: validNotifications.filter((n) => !n.read).length,
+              lastUpdated: new Date(),
+            };
+          }
+          return state;
         });
       },
 
+      // ✅ PERBAIKAN KRITIS: Sync dengan protection
       syncWithBackendData: (backendNotifications: any[]) => {
+        const state = get();
+        const syncId = state._syncCounter + 1;
+
+        console.log(`🔄 [SYNC-${syncId}] Starting sync:`, {
+          backendCount: backendNotifications.length,
+          currentCount: state.notifications.length,
+          timestamp: new Date().toISOString(),
+        });
+
+        // ✅ CEK: Skip jika data backend kosong dan kita sudah punya data
+        if (backendNotifications.length === 0 && state.notifications.length > 0) {
+          console.log(`⏭️ [SYNC-${syncId}] Skip - no backend data but we have local data`);
+          return;
+        }
+
+        // ✅ CEK: Skip jika data sama persis
+        if (backendNotifications.length === 0 && state.notifications.length === 0) {
+          console.log(`⏭️ [SYNC-${syncId}] Skip - no data at all`);
+          return;
+        }
+
         const convertedNotifications: Notification[] = backendNotifications.map((backendNotif) => {
           const validId = validateNotificationId(backendNotif.notification_id || backendNotif.id);
           const validUserId = validateUserId(backendNotif.user_id);
@@ -285,27 +355,38 @@ export const useNotificationStore = create<NotificationState>()(
         });
 
         set((state) => {
+          // Filter invalid notifications
           const validNewNotifications = convertedNotifications.filter((n) => !n.id.includes('NaN') && n.id !== 'null' && n.id !== 'undefined');
+
+          // Cari notifications baru yang belum ada
           const existingIds = new Set(state.notifications.map((n) => n.id));
           const newNotifications = validNewNotifications.filter((n) => !existingIds.has(n.id));
 
-          const mergedNotifications = [...newNotifications, ...state.notifications].sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()).slice(0, 200);
+          // ✅ CEK: Skip jika tidak ada notifications baru
+          if (newNotifications.length === 0) {
+            console.log(`⏭️ [SYNC-${syncId}] Skip - no new notifications to add`);
+            return state;
+          }
 
-          console.log(`🔄 Synced ${newNotifications.length} new notifications from backend`);
+          console.log(`✅ [SYNC-${syncId}] Adding ${newNotifications.length} new notifications`);
+
+          const mergedNotifications = [...newNotifications, ...state.notifications].sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()).slice(0, 200);
 
           return {
             notifications: mergedNotifications,
             unreadCount: mergedNotifications.filter((n) => !n.read).length,
             lastUpdated: new Date(),
+            _syncCounter: syncId,
           };
         });
 
-        setTimeout(() => {
-          const event = new CustomEvent('notificationsSynced', {
-            detail: { count: convertedNotifications.length },
-          });
-          window.dispatchEvent(event);
-        }, 50);
+        // ✅ REMOVE EVENT untuk sementara
+        // setTimeout(() => {
+        //   const event = new CustomEvent('notificationsSynced', {
+        //     detail: { count: convertedNotifications.length, syncId },
+        //   });
+        //   window.dispatchEvent(event);
+        // }, 50);
       },
     }),
     {
@@ -314,17 +395,19 @@ export const useNotificationStore = create<NotificationState>()(
         notifications: state.notifications.filter((n) => !n.id.includes('NaN') && n.id !== 'null' && n.id !== 'undefined'),
         unreadCount: state.unreadCount,
         lastUpdated: state.lastUpdated,
+        _syncCounter: state._syncCounter,
       }),
-      version: 3, 
+      version: 5, // ✅ Increment version
       migrate: (persistedState: any, version: number) => {
-        if (version < 3) {
+        console.log(`🔄 Migrating notification store from version ${version} to 5`);
+        if (version < 5) {
           const notifications = persistedState.notifications || [];
           const validNotifications = notifications.filter((n: any) => n.id && !n.id.includes('NaN') && n.id !== 'null' && n.id !== 'undefined');
-
           return {
             ...persistedState,
             notifications: validNotifications,
             unreadCount: validNotifications.filter((n: any) => !n.read).length,
+            _syncCounter: 0,
           };
         }
         return persistedState;
@@ -333,6 +416,7 @@ export const useNotificationStore = create<NotificationState>()(
   )
 );
 
+// ... notificationUtils tetap sama
 export const notificationUtils = {
   filterForUser: (notifications: Notification[], userId: string): Notification[] => {
     return notifications.filter((n) => n.userId === userId || n.userId === 'broadcast');

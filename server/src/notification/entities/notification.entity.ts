@@ -22,15 +22,16 @@ export class Notification {
   @PrimaryGeneratedColumn()
   notification_id: number;
 
-  @Column()
+  @Column({ nullable: true })
   @Index()
-  user_id: number;
+  user_id: number | null;
 
   @ManyToOne(() => User, (user) => user.notifications, {
     onDelete: 'CASCADE',
+    nullable: true,
   })
   @JoinColumn({ name: 'user_id' })
-  user: User;
+  user: User | null;
 
   @Column({
     type: 'enum',

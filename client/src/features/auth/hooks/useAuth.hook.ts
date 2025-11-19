@@ -1,4 +1,3 @@
-
 import { useState, useCallback, useEffect, useRef } from 'react';
 import { AuthService } from '../services/auth.services';
 import RIMS_API from '../api/auth.api';
@@ -21,7 +20,6 @@ export const useAuth = () => {
   const [updating, setUpdating] = useState<boolean>(false);
 
   const userRef = useRef<AuthUser | null>(null);
-
   const loginNotificationSentRef = useRef<boolean>(false);
 
   useEffect(() => {
@@ -47,7 +45,8 @@ export const useAuth = () => {
     }
   }, []);
 
-  const createLogoutNotification = useCallback(async (userId: number, userID: string) => {
+  // ✅ PERBAIKAN: createLogoutNotification yang bisa bekerja tanpa token
+  const createLogoutNotification = useCallback(async (userId: number, userID: string, accessToken?: string) => {
     const notificationId = `logout-${userId}-${Date.now()}`;
     console.log(`🔔 [${notificationId}] Starting logout notification creation for user:`, { userId, userID });
 
@@ -55,34 +54,62 @@ export const useAuth = () => {
 
     try {
       console.log(`🔔 [${notificationId}] Creating user-specific logout notification...`);
-      await NotificationService.createLogoutNotification(userId, userID);
 
-      console.log(`✅ [${notificationId}] Logout notification created successfully for user: ${userID}`);
+      // ✅ Coba buat notifikasi ke backend jika token tersedia
+      if (accessToken) {
+        try {
+          await NotificationService.createLogoutNotification(userId, userID);
+          console.log(`✅ [${notificationId}] Backend logout notification created successfully for user: ${userID}`);
+          return true;
+        } catch (backendError) {
+          console.error(`❌ [${notificationId}] Backend logout notification failed:`, backendError);
+          // Lanjut ke fallback
+        }
+      }
+
+      // ✅ FALLBACK: Buat local notification
+      console.log(`🔄 [${notificationId}] Creating local logout notification...`);
+      const store = useNotificationStore.getState();
+      store.addNotification({
+        userId: userId.toString(),
+        type: 'info',
+        title: 'Logout Successful',
+        message: `You have successfully logged out. See you soon, ${userID}!`,
+        category: 'security',
+        metadata: {
+          logout_time: new Date().toISOString(),
+          activity_type: 'logout',
+          user_id: userId,
+          username: userID,
+          is_local: true,
+          notification_id: notificationId,
+        },
+      });
+      console.log(`✅ [${notificationId}] Local logout notification created`);
       return true;
     } catch (error) {
       console.error(`❌ [${notificationId}] Failed to create logout notification:`, error);
+
+      // ✅ ULTIMATE FALLBACK: Coba buat local notification sederhana
       try {
-        console.log(`🔄 [${notificationId}] Creating local fallback notification...`);
         const store = useNotificationStore.getState();
         store.addNotification({
           userId: userId.toString(),
           type: 'info',
           title: 'Logout Successful',
-          message: `You have successfully logged out. See you soon, ${userID}!`,
+          message: `You have logged out successfully.`,
           category: 'security',
           metadata: {
             logout_time: new Date().toISOString(),
             activity_type: 'logout',
             user_id: userId,
-            username: userID,
             is_fallback: true,
-            notification_id: notificationId,
           },
         });
-        console.log(`✅ [${notificationId}] Local fallback logout notification created`);
+        console.log(`✅ [${notificationId}] Ultimate fallback notification created`);
         return true;
       } catch (fallbackError) {
-        console.error(`[${notificationId}] Fallback notification also failed:`, fallbackError);
+        console.error(`[${notificationId}] All notification attempts failed:`, fallbackError);
         return false;
       }
     }
@@ -255,6 +282,7 @@ export const useAuth = () => {
       setLoading(false);
     }
   }, []);
+
   const logout = useCallback(async () => {
     const logoutId = `logout-${Date.now()}`;
     console.log(`🚪 [${logoutId}] Starting logout process...`);
@@ -273,28 +301,36 @@ export const useAuth = () => {
       return;
     }
 
-    try {
-      console.log(`🚪 [${logoutId}] Creating logout notifications...`);
-      const notificationSuccess = await createLogoutNotification(userId, userID);
+    const accessToken = localStorage.getItem('access_token');
 
-      if (!notificationSuccess) {
-        console.log(`⚠️ [${logoutId}] Logout notifications failed, but continuing logout process`);
-      }
-
-      console.log(`🚪 [${logoutId}] Finalizing logout process...`);
-      await new Promise((resolve) => setTimeout(resolve, 100));
-    } catch (error) {
-      console.error(`[${logoutId}] Error during logout process:`, error);
-    } finally {
-      console.log(`🚪 [${logoutId}] Clearing authentication data...`);
-      localStorage.removeItem('access_token');
-      if (userId) {
-        localStorage.removeItem(`last_login_${userId}`);
-      }
-      setUser(null);
-
-      console.log(`✅ [${logoutId}] Logout process completed successfully for user: ${userID}`);
+    console.log(`🚪 [${logoutId}] Clearing authentication data immediately...`);
+    localStorage.removeItem('access_token');
+    if (userId) {
+      localStorage.removeItem(`last_login_${userId}`);
     }
+    setUser(null);
+
+    console.log(`✅ [${logoutId}] Auth data cleared, user logged out`);
+
+    
+    console.log(`🚪 [${logoutId}] Creating logout notifications asynchronously...`);
+
+    setTimeout(async () => {
+      try {
+        console.log(`🚪 [${logoutId}] Executing async logout notification...`);
+        const notificationSuccess = await createLogoutNotification(userId, userID, accessToken || undefined);
+
+        if (!notificationSuccess) {
+          console.log(`⚠️ [${logoutId}] Logout notifications failed, but user already logged out`);
+        } else {
+          console.log(`✅ [${logoutId}] Logout notifications completed successfully`);
+        }
+      } catch (error) {
+        console.error(`[${logoutId}] Error in async logout notification:`, error);
+      }
+    }, 0);
+
+    console.log(`🎉 [${logoutId}] Logout process completed successfully for user: ${userID}`);
   }, [createLogoutNotification]);
 
   const quickLogout = useCallback(() => {
@@ -303,8 +339,11 @@ export const useAuth = () => {
 
     const currentUser = userRef.current;
     const userId = currentUser?.user_id;
+    const userID = currentUser?.userID;
 
     console.log(`[${logoutId}] Current user:`, { userId, userID: currentUser?.userID });
+
+    const accessToken = localStorage.getItem('access_token');
 
     localStorage.removeItem('access_token');
     if (userId) {
@@ -312,19 +351,44 @@ export const useAuth = () => {
     }
     setUser(null);
 
+    if (userId && userID) {
+      setTimeout(() => {
+        try {
+          const store = useNotificationStore.getState();
+          store.addNotification({
+            userId: userId.toString(),
+            type: 'info',
+            title: 'Logout Successful',
+            message: `You have successfully logged out.`,
+            category: 'security',
+            metadata: {
+              logout_time: new Date().toISOString(),
+              activity_type: 'logout',
+              user_id: userId,
+              username: userID,
+              is_quick_logout: true,
+            },
+          });
+          console.log(`✅ [${logoutId}] Quick logout notification created`);
+        } catch (error) {
+          console.error(`[${logoutId}] Quick logout notification failed:`, error);
+        }
+      }, 0);
+    }
+
     console.log(`[${logoutId}] Quick logout completed`);
   }, []);
 
   const fetchProfile = useCallback(async () => {
     if (!user?.user_id) {
-      console.log('⚠️ Cannot fetch profile: no user ID');
+      console.log('ga bisa fetch profile id : ga ada user id');
       return null;
     }
 
-    console.log(`👤 Fetching profile for user: ${user.user_id}`);
+    console.log(`fetch profile : ${user.user_id}`);
     try {
       const res = await ProfileService.getProfile(user.user_id);
-      console.log(` Profile fetched successfully for user: ${user.user_id}`);
+      console.log(` profile berhasil di update: ${user.user_id}`);
       return res;
     } catch (err) {
       console.error(`Failed to fetch profile for user ${user.user_id}:`, err);
@@ -496,7 +560,7 @@ export const useAuth = () => {
 
     const testId = `test-${Date.now()}`;
     console.log(`🧪 [${testId}] Testing logout notification...`);
-    await createLogoutNotification(user.user_id, user.userID);
+    await createLogoutNotification(user.user_id, user.userID, localStorage.getItem('access_token') || undefined);
 
     setTimeout(() => {
       console.log(`🔍 [${testId}] Checking notification store...`);

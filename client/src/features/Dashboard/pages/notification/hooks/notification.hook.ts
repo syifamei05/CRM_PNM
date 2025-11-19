@@ -13,40 +13,42 @@ export interface NotificationInput {
   action?: { label: string; onClick: () => void };
 }
 
-interface NotificationStats {
-  total: number;
-  unread: number;
-  read: number;
-  byType: { info: number; success: number; warning: number; error: number };
-  byCategory: Record<string, number>;
-}
-
 export const useUserNotifications = () => {
   const { user } = useAuth();
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const pollingRef = useRef<number | null>(null);
   const userIdRef = useRef<string | null>(null);
+
   const { notifications, addNotification, markAsRead, markAllAsRead, removeNotification, clearAll, getAllNotificationsForUser, getUnreadByUser, updateNotification, syncWithBackendData } = useNotificationStore();
+
+  const userId = user?.user_id?.toString();
+
+  // ✅ Consolidated activity detection logic
   const getLoginLogoutNotifications = useCallback((notifications: Notification[]) => {
     return notifications.filter((n) => (n.category === 'security' || n.category === 'system') && (n.metadata?.activity_type === 'login' || n.metadata?.activity_type === 'logout' || n.metadata?.activity_type === 'user_status'));
   }, []);
 
+  // ✅ Improved activity stats calculation
   const getActivityStats = useCallback(
     (notifications: Notification[]) => {
       const loginLogoutNotifs = getLoginLogoutNotifications(notifications);
+      const now = new Date();
 
-      const today = new Date().toDateString();
-      const todayActivities = loginLogoutNotifs.filter((n) => new Date(n.timestamp).toDateString() === today);
+      const todayActivities = loginLogoutNotifs.filter((n) => {
+        const notifDate = new Date(n.timestamp);
+        return notifDate.toDateString() === now.toDateString();
+      });
 
       const last7DaysActivities = loginLogoutNotifs.filter((n) => {
         const notifDate = new Date(n.timestamp);
-        const sevenDaysAgo = new Date();
+        const sevenDaysAgo = new Date(now);
         sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
         return notifDate >= sevenDaysAgo;
       });
 
       const loginActivities = loginLogoutNotifs.filter((n) => n.metadata?.activity_type === 'login' || n.metadata?.action === 'login');
+
       const logoutActivities = loginLogoutNotifs.filter((n) => n.metadata?.activity_type === 'logout' || n.metadata?.action === 'logout');
 
       return {
@@ -61,20 +63,22 @@ export const useUserNotifications = () => {
     [getLoginLogoutNotifications]
   );
 
+  // ✅ Improved sync function with better error handling
   const syncNotifications = useCallback(
     async (userId: string) => {
+      if (!userId) return;
+
       try {
         setIsLoading(true);
         setError(null);
 
         console.log('🔄 Starting notification sync for user:', userId);
 
-        const result = await NotificationService.getUserNotifications(userId, {
+        const result = await NotificationService.getAllNotifications(userId, {
           unreadOnly: false,
-          limit: 50,
+          limit: 100,
         });
 
-        // Sync data ke store
         syncWithBackendData(result.notifications);
 
         console.log('✅ Notifications synced successfully:', {
@@ -92,32 +96,34 @@ export const useUserNotifications = () => {
     [syncWithBackendData]
   );
 
-  // Setup polling dan sync
+  // ✅ FIXED: Setup polling dan sync - CLEAN VERSION
   useEffect(() => {
-    const userId = user?.user_id?.toString();
+    const currentUserId = user?.user_id?.toString();
 
-    if (!userId) {
-      if (pollingRef.current && userIdRef.current) {
-        NotificationService.stopPolling(userIdRef.current);
-      }
+    // Always cleanup previous polling first
+    if (pollingRef.current && userIdRef.current) {
+      NotificationService.stopPolling(userIdRef.current);
       pollingRef.current = null;
       userIdRef.current = null;
+    }
+
+    // Only setup polling if we have a user
+    if (!currentUserId) {
       return;
     }
 
-    if (userIdRef.current !== userId && pollingRef.current && userIdRef.current) {
-      NotificationService.stopPolling(userIdRef.current);
-      pollingRef.current = null;
-    }
+    // Store current user ID
+    userIdRef.current = currentUserId;
 
-    if (!pollingRef.current || userIdRef.current !== userId) {
-      userIdRef.current = userId;
-      syncNotifications(userId);
-      pollingRef.current = NotificationService.startPolling(userId, 15000); // 15 detik
+    // Initial sync
+    syncNotifications(currentUserId);
 
-      console.log('🔔 Started notification polling for user:', userId);
-    }
+    // Start polling
+    pollingRef.current = NotificationService.startPolling(currentUserId, 15000);
 
+    console.log('🔔 Started notification polling for user:', currentUserId);
+
+    // Cleanup on unmount or user change
     return () => {
       if (pollingRef.current && userIdRef.current) {
         NotificationService.stopPolling(userIdRef.current);
@@ -126,44 +132,54 @@ export const useUserNotifications = () => {
       }
     };
   }, [user?.user_id, syncNotifications]);
+
+  // ✅ Memoized data calculations
   const allNotificationsForUser = useMemo(() => {
-    if (!user?.user_id) return [];
-    return getAllNotificationsForUser(user.user_id.toString());
-  }, [notifications, user?.user_id, getAllNotificationsForUser]);
+    return userId ? getAllNotificationsForUser(userId) : [];
+  }, [notifications, userId, getAllNotificationsForUser]);
 
   const totalUnreadCount = useMemo(() => {
-    if (!user?.user_id) return 0;
-    return getUnreadByUser(user.user_id.toString());
-  }, [notifications, user?.user_id, getUnreadByUser]);
+    return userId ? getUnreadByUser(userId) : 0;
+  }, [notifications, userId, getUnreadByUser]);
 
   const loginLogoutNotifications = useMemo(() => getLoginLogoutNotifications(allNotificationsForUser), [allNotificationsForUser, getLoginLogoutNotifications]);
 
   const activityStats = useMemo(() => getActivityStats(allNotificationsForUser), [allNotificationsForUser, getActivityStats]);
 
-  const addUserNotification = useCallback(
-    async (notificationData: NotificationInput) => {
-      if (!user?.user_id) return null;
+  // ✅ Consolidated notification creation
+  const createNotification = useCallback(
+    async (type: NotificationInput['type'], title: string, message: string, category?: string, metadata?: Record<string, any>) => {
+      if (!userId) return null;
+
+      const notificationData = {
+        userId: parseInt(userId),
+        type,
+        title,
+        message,
+        ...(category && { category }),
+        ...(metadata && { metadata }),
+      };
 
       try {
-        await NotificationService.createNotification({
-          userId: user.user_id,
-          ...notificationData,
-        });
-
-        return addNotification({
-          ...notificationData,
-          userId: user.user_id.toString(),
-        });
+        await NotificationService.createNotification(notificationData);
       } catch (err) {
-        console.error('Failed to create notification:', err);
-        return addNotification({
+        console.error('Failed to create backend notification:', err);
+        addNotification({
           ...notificationData,
-          userId: user.user_id.toString(),
+          userId: userId,
         });
       }
     },
-    [user?.user_id, addNotification]
+    [userId, addNotification]
   );
+
+  const addSuccessNotification = useCallback((title: string, message: string, category?: string, metadata?: Record<string, any>) => createNotification('success', title, message, category, metadata), [createNotification]);
+
+  const addErrorNotification = useCallback((title: string, message: string, category?: string, metadata?: Record<string, any>) => createNotification('error', title, message, category, metadata), [createNotification]);
+
+  const addWarningNotification = useCallback((title: string, message: string, category?: string, metadata?: Record<string, any>) => createNotification('warning', title, message, category, metadata), [createNotification]);
+
+  const addInfoNotification = useCallback((title: string, message: string, category?: string, metadata?: Record<string, any>) => createNotification('info', title, message, category, metadata), [createNotification]);
 
   const markAsReadWithSync = useCallback(
     async (id: string) => {
@@ -192,59 +208,37 @@ export const useUserNotifications = () => {
   );
 
   const markAllAsReadForCurrentUser = useCallback(async () => {
-    if (!user?.user_id) return;
+    if (!userId) return;
 
     try {
-      await NotificationService.markAllAsRead(user.user_id.toString());
+      await NotificationService.markAllAsRead(userId);
     } catch (err) {
       console.error('Failed to mark all as read on backend:', err);
     } finally {
       markAllAsRead();
     }
-  }, [user?.user_id, markAllAsRead]);
-
-  const removeAllForCurrentUser = useCallback(async () => {
-    if (!user?.user_id) return;
-
-    try {
-      await NotificationService.deleteAllUserNotifications(user.user_id.toString());
-    } catch (err) {
-      console.error('Failed to delete all on backend:', err);
-    } finally {
-      clearAll();
-    }
-  }, [user?.user_id, clearAll]);
-
-  const addSuccessNotification = useCallback((title: string, message: string, category?: string, metadata?: Record<string, any> | null) => addUserNotification({ type: 'success', title, message, category, metadata }), [addUserNotification]);
-
-  const addErrorNotification = useCallback((title: string, message: string, category?: string, metadata?: Record<string, any> | null) => addUserNotification({ type: 'error', title, message, category, metadata }), [addUserNotification]);
-
-  const addWarningNotification = useCallback((title: string, message: string, category?: string, metadata?: Record<string, any> | null) => addUserNotification({ type: 'warning', title, message, category, metadata }), [addUserNotification]);
-
-  const addInfoNotification = useCallback((title: string, message: string, category?: string, metadata?: Record<string, any> | null) => addUserNotification({ type: 'info', title, message, category, metadata }), [addUserNotification]);
+  }, [userId, markAllAsRead]);
 
   const refreshNotifications = useCallback(async () => {
-    if (user?.user_id) {
-      await syncNotifications(user.user_id.toString());
+    if (userId) {
+      await syncNotifications(userId);
     }
-  }, [user?.user_id, syncNotifications]);
+  }, [userId, syncNotifications]);
 
+  // ✅ Debug logging in development
   useEffect(() => {
-    if (allNotificationsForUser.length > 0 && process.env.NODE_ENV === 'development') {
-      console.log('📊 Notification Summary:', {
+    // Di Vite, gunakan import.meta.env.DEV
+    if (import.meta.env.DEV && allNotificationsForUser.length > 0) {
+      console.log('📊 Notification Stats:', {
         total: allNotificationsForUser.length,
         unread: totalUnreadCount,
         loginLogout: loginLogoutNotifications.length,
-        recent: allNotificationsForUser.slice(0, 3).map((n) => ({
-          title: n.title,
-          userId: n.userId,
-          metadata: n.metadata,
-        })),
       });
     }
-  }, [allNotificationsForUser, totalUnreadCount, loginLogoutNotifications.length]);
+  }, [allNotificationsForUser.length, totalUnreadCount, loginLogoutNotifications.length]);
 
   return {
+    // Data
     notifications: allNotificationsForUser,
     unreadCount: totalUnreadCount,
     hasNotifications: allNotificationsForUser.length > 0,
@@ -252,17 +246,23 @@ export const useUserNotifications = () => {
     error,
     loginLogoutNotifications,
     activityStats,
-    addNotification: addUserNotification,
+
+    // Operations
+    addNotification: createNotification,
     markAsRead: markAsReadWithSync,
     removeNotification: removeNotificationWithSync,
     updateNotification,
     markAllAsRead: markAllAsReadForCurrentUser,
-    removeAllNotifications: removeAllForCurrentUser,
+    removeAllNotifications: clearAll,
     refreshNotifications,
+
+    // Convenience methods
     addSuccessNotification,
     addErrorNotification,
     addWarningNotification,
     addInfoNotification,
+
+    // Stats
     stats: {
       total: allNotificationsForUser.length,
       unread: totalUnreadCount,

@@ -54,17 +54,41 @@ let NotificationService = NotificationService_1 = class NotificationService {
             throw new common_1.InternalServerErrorException('Failed to retrieve notification');
         }
     }
+    async notifyUserStatusChange(userId, userName, status) {
+        try {
+            const notification = await this.create({
+                type: notification_entity_1.NotificationType.SYSTEM,
+                title: `User Status Update`,
+                message: `${userName} is now ${status}`,
+                category: 'user-status',
+                metadata: { userId, userName, status, timestamp: new Date() },
+                expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000),
+            });
+            this.logger.log(`User status notification created for ${userName} (${status})`);
+            return notification;
+        }
+        catch (error) {
+            this.logger.error('Failed to create user status notification', error);
+            throw new common_1.InternalServerErrorException('Failed to create status notification');
+        }
+    }
     async create(createDto) {
         try {
             const notification = this.notificationRepository.create({
                 ...createDto,
-                user_id: Number(createDto.userId),
+                user_id: createDto.userId ? Number(createDto.userId) : null,
                 expires_at: createDto.expiresAt ?? null,
             });
             const savedNotification = await this.notificationRepository.save(notification);
-            this.gateway.sendNotificationToUser(savedNotification.user_id, savedNotification);
-            this.gateway.sendNotificationToAll(savedNotification);
-            this.logger.log(`Notification created for user ${savedNotification.user_id}`);
+            if (savedNotification.user_id) {
+                this.gateway.sendNotificationToUser(savedNotification.user_id, savedNotification);
+            }
+            else {
+                this.gateway.sendNotificationToAll(savedNotification);
+            }
+            this.logger.log(savedNotification.user_id
+                ? `Notification created for user ${savedNotification.user_id}`
+                : `Broadcast notification created`);
             return savedNotification;
         }
         catch (error) {
@@ -77,8 +101,12 @@ let NotificationService = NotificationService_1 = class NotificationService {
             const notification = await this.findOne(notification_id);
             Object.assign(notification, updateNotificationDto);
             const updated = await this.notificationRepository.save(notification);
-            this.gateway.sendNotificationToUser(updated.user_id, updated);
-            this.gateway.sendNotificationToAll(updated);
+            if (updated.user_id) {
+                this.gateway.sendNotificationToUser(updated.user_id, updated);
+            }
+            else {
+                this.gateway.sendNotificationToAll(updated);
+            }
             return updated;
         }
         catch (error) {
@@ -149,7 +177,12 @@ let NotificationService = NotificationService_1 = class NotificationService {
             const notification = await this.findOne(notification_id);
             notification.read = true;
             const updated = await this.notificationRepository.save(notification);
-            this.gateway.sendNotificationToAll(updated);
+            if (updated.user_id) {
+                this.gateway.sendNotificationToUser(updated.user_id, updated);
+            }
+            else {
+                this.gateway.sendNotificationToAll(updated);
+            }
             return updated;
         }
         catch (error) {
@@ -192,15 +225,15 @@ let NotificationService = NotificationService_1 = class NotificationService {
             this.logger.log(`Removed ${result.affected ?? 0} expired notifications`);
         }
         catch (error) {
-            this.logger.error('Failed to remove expired notifications', error);
-            throw new common_1.InternalServerErrorException('Failed to remove expired notifications');
+            this.logger.error('gagal memindahkan notifikasi expired', error);
+            throw new common_1.InternalServerErrorException('gagal memindahkan notifikasi expired');
         }
     }
     async createMultiple(createDtos) {
         try {
             const notificationsData = createDtos.map((dto) => ({
                 ...dto,
-                user_id: Number(dto.userId),
+                user_id: dto.userId ? Number(dto.userId) : null,
                 expires_at: dto.expiresAt ?? null,
             }));
             const notifications = this.notificationRepository.create(notificationsData);
@@ -209,8 +242,8 @@ let NotificationService = NotificationService_1 = class NotificationService {
             return savedNotifications;
         }
         catch (error) {
-            this.logger.error('Failed to create multiple notifications', error);
-            throw new common_1.InternalServerErrorException('Failed to create notifications');
+            this.logger.error('gagal buat notifikasi', error);
+            throw new common_1.InternalServerErrorException('gagal buat notifikasi');
         }
     }
     async findByUser(user_id, options = {}) {
@@ -228,21 +261,9 @@ let NotificationService = NotificationService_1 = class NotificationService {
             return { notifications, total };
         }
         catch (error) {
-            this.logger.error(`Failed to find notifications for user ${user_id}`, error);
+            this.logger.error(`gagal menemukan user id ${user_id}`, error);
             throw new common_1.InternalServerErrorException('Failed to retrieve user notifications');
         }
-    }
-    async notifyUserStatusChange(userId, userName, status) {
-        const notification = await this.create({
-            userId,
-            type: notification_entity_1.NotificationType.SYSTEM,
-            title: `User ${status}`,
-            message: `${userName} is now ${status}`,
-            category: 'user-status',
-            metadata: { userId, status },
-            expiresAt: null,
-        });
-        this.gateway.sendNotificationToAll(notification);
     }
     async getRecentUserNotifications(user_id, hours = 24) {
         try {

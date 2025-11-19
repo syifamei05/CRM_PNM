@@ -32,27 +32,43 @@ export default function NotificationHeader({
     darkMode ? 'bg-green-600 hover:bg-green-700 text-white' : 'bg-green-500 hover:bg-green-600 text-white'
   }`;
 
-  const handleMarkAllAsRead = () => {
+  const handleMarkAllAsRead = async () => {
     if (isLoading || unreadCount === 0) return;
     console.log('📝 Marking all notifications as read...');
-    onMarkAllAsRead();
+    try {
+      await onMarkAllAsRead();
+      console.log('✅ All notifications marked as read');
+    } catch (error) {
+      console.error('❌ Failed to mark all as read:', error);
+    }
   };
 
-  const handleBulkDelete = () => {
+  const handleBulkDelete = async () => {
     if (isLoading || selectedCount === 0) return;
 
     const confirmDelete = window.confirm(`Are you sure you want to delete ${selectedCount} notification${selectedCount > 1 ? 's' : ''}?`);
 
     if (confirmDelete) {
       console.log('🗑️ Bulk deleting notifications:', selectedCount);
-      onBulkDelete();
+      try {
+        await onBulkDelete();
+        console.log('✅ Bulk delete completed');
+      } catch (error) {
+        console.error('❌ Bulk delete failed:', error);
+        alert('Failed to delete notifications. Please try again.');
+      }
     }
   };
 
-  const handleRefresh = () => {
+  const handleRefresh = async () => {
     if (isLoading) return;
     console.log('🔄 Refreshing notifications...');
-    onRefresh();
+    try {
+      await onRefresh();
+      console.log('✅ Refresh completed');
+    } catch (error) {
+      console.error('❌ Refresh failed:', error);
+    }
   };
 
   const handleToggleSettings = () => {
@@ -112,6 +128,7 @@ export default function NotificationHeader({
             ) : (
               'No notifications'
             )}
+            {selectedCount > 0 && <span className="ml-2 text-blue-600 dark:text-blue-400">• {selectedCount} selected</span>}
           </p>
         </div>
       </div>
