@@ -185,7 +185,6 @@ export function exportInvestasiToExcel(filteredRows, viewYear, viewQuarter) {
         cell.s.alignment = { ...(cell.s.alignment || {}), horizontal: 'center' };
       }
 
-      // Hasil
       if (c === 13) {
         cell.s.alignment = { ...(cell.s.alignment || {}), horizontal: 'center' };
         if (isPembilang || isPenyebut) {

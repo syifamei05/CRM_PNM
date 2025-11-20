@@ -45,7 +45,6 @@ export const useAuth = () => {
     }
   }, []);
 
-  // ✅ PERBAIKAN: createLogoutNotification yang bisa bekerja tanpa token
   const createLogoutNotification = useCallback(async (userId: number, userID: string, accessToken?: string) => {
     const notificationId = `logout-${userId}-${Date.now()}`;
     console.log(`🔔 [${notificationId}] Starting logout notification creation for user:`, { userId, userID });
@@ -55,7 +54,6 @@ export const useAuth = () => {
     try {
       console.log(`🔔 [${notificationId}] Creating user-specific logout notification...`);
 
-      // ✅ Coba buat notifikasi ke backend jika token tersedia
       if (accessToken) {
         try {
           await NotificationService.createLogoutNotification(userId, userID);

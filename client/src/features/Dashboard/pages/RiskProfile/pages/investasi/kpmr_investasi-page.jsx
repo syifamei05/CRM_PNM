@@ -499,19 +499,24 @@ import { useAuth } from '../../../../../auth/hooks/useAuth.hook';
 const EMPTY_FORM = {
   year: new Date().getFullYear(),
   quarter: 'Q1',
-  aspekNo: 'Aspek 1',
-  aspekTitle: 'Tata Kelola Risiko',
-  aspekBobot: 30,
-  sectionNo: '1',
-  sectionTitle: '',
-  sectionSkor: '',
-  indikator: 'Bagaimana perumusan tingkat risiko yang akan diambil (risk appetite) dan toleransi risiko (risk tolerance) terkait risiko investasi?',
+  aspekNo: '',
+  aspekBobot: 0,
+  aspekTitle: '',
+  sectionNo: '',
+  indikator: '',
+  sectionSkor: 0,
+  tata_kelola_resiko: '',
+  evidence: '',
+  strong: '',
+  satisfactory: '',
+  fair: '',
+  marginal: '',
+  unsatisfactory: '',
   level1: '',
   level2: '',
   level3: '',
   level4: '',
   level5: '',
-  evidence: '',
 };
 
 const LEVEL_CONFIG = [
@@ -541,7 +546,7 @@ const sortRows = (rows) => {
 const filterRows = (rows, query) => {
   if (!query) return rows;
   return rows.filter((r) => {
-    const searchText = `${r.aspekNo} ${r.aspekTitle} ${r.sectionNo} ${r.sectionTitle} ${r.evidence} ${r.level1} ${r.level2} ${r.level3} ${r.level4} ${r.level5}`.toLowerCase();
+    const searchText = `${r.aspekNo} ${r.aspekTitle} ${r.sectionNo} ${r.indikator} ${r.evidence} ${r.strong} ${r.satisfactory} ${r.fair} ${r.marginal} ${r.unsatisfactory}`.toLowerCase();
     return searchText.includes(query.toLowerCase());
   });
 };
@@ -678,6 +683,7 @@ export default function KPMR() {
     aspekBobot: 0,
     aspekTitle: '',
     sectionNo: '',
+    indikator: '',
     sectionSkor: 0,
     tata_kelola_resiko: '',
     evidence: '',
@@ -699,7 +705,15 @@ export default function KPMR() {
   const { user: authUser } = useAuth();
   const { logCreate, logUpdate, logDelete, logExport } = useAuditLog(); // ❌ HAPUS logView
 
-  const filters = useMemo(() => ({ year: viewYear, quarter: viewQuarter }), [viewYear, viewQuarter]);
+  const filters = useMemo(
+    () => ({
+      year: viewYear,
+      quarter: viewQuarter,
+      query: query || undefined,
+    }),
+    [viewYear, viewQuarter, query]
+  );
+
   const { data, loading, error, createKpmr, updateKpmr, deleteKpmr } = useKpmrInvestasi(filters);
 
   const groups = useMemo(() => {
@@ -708,19 +722,30 @@ export default function KPMR() {
       {
         aspekNo: '1',
         aspekTitle: 'KPMR Investasi',
-        aspekBobot: data[0]?.aspek_bobot || data[0]?.aspekBobot || 0,
-        rows: data.map((item, idx) => ({
+        aspekBobot: data[0]?.aspekBobot || 0,
+        rows: data.map((item) => ({
+          // ✅ Include semua property yang diperlukan untuk edit
           id_kpmr_investasi: item.id_kpmr_investasi,
-          sectionNo: idx + 1,
-          indikator: item.indikator || item.tata_kelola_resiko || '-',
-          aspekBobot: item.aspek_bobot || item.aspekBobot || 0,
-          sectionSkor: item.section_skor || item.sectionSkor || '-',
-          strong: item.strong || '-',
-          satisfactory: item.satisfactory || '-',
-          fair: item.fair || '-',
-          marginal: item.marginal || '-',
-          unsatisfactory: item.unsatisfactory || '-',
-          evidence: item.evidence || '-',
+          year: item.year,
+          quarter: item.quarter,
+          aspekNo: item.aspekNo || '',
+          aspekBobot: item.aspekBobot || 0,
+          aspekTitle: item.aspekTitle || '',
+          sectionNo: item.sectionNo || '',
+          indikator: item.indikator || '',
+          sectionSkor: item.sectionSkor || 0,
+          tata_kelola_resiko: item.tata_kelola_resiko || '',
+          evidence: item.evidence || '',
+          strong: item.strong || '',
+          satisfactory: item.satisfactory || '',
+          fair: item.fair || '',
+          marginal: item.marginal || '',
+          unsatisfactory: item.unsatisfactory || '',
+          level1: item.strong || '',
+          level2: item.satisfactory || '',
+          level3: item.fair || '',
+          level4: item.marginal || '',
+          level5: item.unsatisfactory || '',
         })),
       },
     ];
@@ -806,63 +831,121 @@ export default function KPMR() {
   };
 
   const resetForm = () => {
-    setForm({ ...EMPTY_FORM, year: viewYear, quarter: viewQuarter });
+    setForm({
+      ...EMPTY_FORM,
+      year: viewYear,
+      quarter: viewQuarter,
+    });
     setEditingId(null);
     setLocalError(null);
+    console.log('🔄 Form reset');
   };
 
   const handleSubmit = async () => {
     try {
       setLocalError(null);
-      console.log('Submitting form:', form);
+      console.log('📤 Submitting form:', form, 'Editing ID:', editingId);
 
-      const mappedData = {
-        ...form,
-        strong: form.level1,
-        satisfactory: form.level2,
-        fair: form.level3,
-        marginal: form.level4,
-        unsatisfactory: form.level5,
-      };
+      // Validasi required fields
+      const requiredFields = ['aspekNo', 'aspekTitle', 'sectionNo', 'indikator'];
+      const missingFields = requiredFields.filter((field) => !form[field]);
 
-      if (!mappedData.aspekNo || !mappedData.aspekTitle || !mappedData.sectionNo || !mappedData.indikator) {
-        setLocalError('Mohon lengkapi semua field yang diperlukan');
+      if (missingFields.length > 0) {
+        setLocalError(`Mohon lengkapi field: ${missingFields.join(', ')}`);
         return;
       }
 
+      // Prepare data untuk API
+      const payload = {
+        year: Number(form.year) || new Date().getFullYear(),
+        quarter: form.quarter,
+        aspekNo: form.aspekNo,
+        aspekBobot: Number(form.aspekBobot) || 0,
+        aspekTitle: form.aspekTitle,
+        sectionNo: form.sectionNo,
+        indikator: form.indikator,
+        sectionSkor: Number(form.sectionSkor) || 0,
+        tata_kelola_resiko: form.tata_kelola_resiko || '',
+        evidence: form.evidence || '',
+        strong: form.level1 || form.strong || '',
+        satisfactory: form.level2 || form.satisfactory || '',
+        fair: form.level3 || form.fair || '',
+        marginal: form.level4 || form.marginal || '',
+        unsatisfactory: form.level5 || form.unsatisfactory || '',
+      };
+
+      console.log('🚀 Payload to API:', payload);
+
       if (editingId) {
-        await handleAuditLog('UPDATE', `Mengupdate data KPMR Investasi - Aspek: "${mappedData.aspekTitle}", Section: ${mappedData.sectionNo}`, true, {
+        console.log('🔄 Updating record with ID:', editingId);
+        await updateKpmr(editingId, payload);
+
+        await handleAuditLog('UPDATE', `Mengupdate data KPMR Investasi - Aspek: "${payload.aspekTitle}", Section: ${payload.sectionNo}`, true, {
           id_kpmr_investasi: editingId,
-          aspek: mappedData.aspekTitle,
-          section: mappedData.sectionNo,
-          skor: mappedData.sectionSkor,
+          aspek: payload.aspekTitle,
+          section: payload.sectionNo,
+          skor: payload.sectionSkor,
         });
-        await updateKpmr(editingId, mappedData);
       } else {
-        await handleAuditLog('CREATE', `Menambahkan data KPMR Investasi - Aspek: "${mappedData.aspekTitle}", Section: ${mappedData.sectionNo}`, true, {
-          aspek: mappedData.aspekTitle,
-          section: mappedData.sectionNo,
-          skor: mappedData.sectionSkor,
-          bobot: mappedData.aspekBobot,
+        console.log('🆕 Creating new record');
+        await createKpmr(payload);
+
+        await handleAuditLog('CREATE', `Menambahkan data KPMR Investasi - Aspek: "${payload.aspekTitle}", Section: ${payload.sectionNo}`, true, {
+          aspek: payload.aspekTitle,
+          section: payload.sectionNo,
+          skor: payload.sectionSkor,
+          bobot: payload.aspekBobot,
         });
-        await createKpmr(mappedData);
       }
 
       resetForm();
+      console.log('✅ Submit successful');
     } catch (err) {
-      await handleAuditLog(editingId ? 'UPDATE' : 'CREATE', `Gagal ${editingId ? 'update' : 'tambah'} data KPMR Investasi - Aspek: "${form.aspekTitle}", Section: ${form.sectionNo}`, false, {
-        error: err.message,
+      console.error('❌ Submit error:', err);
+      const action = editingId ? 'UPDATE' : 'CREATE';
+      const errorMessage = err.response?.data?.message || err.message || 'Gagal menyimpan data';
+
+      await handleAuditLog(action, `Gagal ${editingId ? 'update' : 'tambah'} data KPMR Investasi - Aspek: "${form.aspekTitle}", Section: ${form.sectionNo}`, false, {
+        error: errorMessage,
         aspek: form.aspekTitle,
         section: form.sectionNo,
       });
-      setLocalError(err.message || 'Gagal menyimpan data');
+
+      setLocalError(errorMessage);
     }
   };
 
   const handleEdit = (row) => {
-    setForm({ ...row });
-    setEditingId(row.id_kpmr_investasi || null);
+    console.log('🔄 Editing row:', row);
+
+    const formData = {
+      year: row.year || viewYear,
+      quarter: row.quarter || viewQuarter,
+      aspekNo: row.aspekNo || '',
+      aspekBobot: row.aspekBobot || 0,
+      aspekTitle: row.aspekTitle || '',
+      sectionNo: row.sectionNo || '',
+      indikator: row.indikator || '',
+      sectionSkor: row.sectionSkor || 0,
+      tata_kelola_resiko: row.tata_kelola_resiko || '',
+      evidence: row.evidence || '',
+      strong: row.strong || '',
+      satisfactory: row.satisfactory || '',
+      fair: row.fair || '',
+      marginal: row.marginal || '',
+      unsatisfactory: row.unsatisfactory || '',
+      level1: row.strong || row.level1 || '',
+      level2: row.satisfactory || row.level2 || '',
+      level3: row.fair || row.level3 || '',
+      level4: row.marginal || row.level4 || '',
+      level5: row.unsatisfactory || row.level5 || '',
+    };
+
+    setForm(formData);
+    setEditingId(row.id_kpmr_investasi);
     setLocalError(null);
+
+    console.log('✅ Form set for editing:', { formData, editingId: row.id_kpmr_investasi });
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
@@ -1101,16 +1184,16 @@ export default function KPMR() {
               </thead>
 
               <tbody>
-                {(groups ?? []).map((group, idx) => (
-                  <React.Fragment key={idx}>
+                {(groups ?? []).map((group, groupIdx) => (
+                  <React.Fragment key={groupIdx}>
                     <tr className="bg-blue-50 font-semibold text-gray-700">
                       <td colSpan={10} className="border border-gray-200 px-4 py-2 text-left">
                         {group.aspekNo}. {group.aspekTitle} — <span className="text-blue-600">Bobot: {group.aspekBobot}%</span>
                       </td>
                     </tr>
 
-                    {(group.rows ?? []).map((row, i) => (
-                      <tr key={row.id_kpmr_investasi || i} className="hover:bg-blue-50 transition-colors">
+                    {(group.rows ?? []).map((row, rowIdx) => (
+                      <tr key={row.id_kpmr_investasi || `${groupIdx}-${rowIdx}`} className="hover:bg-blue-50 transition-colors">
                         <td className="border border-gray-200 px-4 py-2 text-center text-sm text-gray-700 w-16">{row.sectionNo}</td>
                         <td className="border border-gray-200 px-4 py-2 text-gray-800 text-sm">{row.indikator}</td>
                         <td className="border border-gray-200 px-4 py-2 text-center font-semibold text-blue-700">{row.sectionSkor}</td>
@@ -1121,6 +1204,7 @@ export default function KPMR() {
                         <td className="border border-gray-200 px-4 py-2 text-sm">{row.unsatisfactory || '-'}</td>
                         <td className="border border-gray-200 px-4 py-2 text-sm">{row.evidence || '-'}</td>
 
+                        {/* edit section */}
                         <td className="border border-gray-200 px-4 py-4 text-left space-x-2">
                           <button onClick={() => handleEdit(row)} className="inline-flex mb-2 items-center px-3 py-1 text-sm font-medium rounded-md bg-blue-100 text-blue-700 hover:bg-blue-200 transition">
                             Edit

@@ -444,7 +444,7 @@ export const useUserNotificationsWithSync = (): UseUserNotificationsWithSyncRetu
 
   useEffect(() => {
     if (import.meta.env.DEV && loginLogoutNotifications.length > 0) {
-      console.log('🔐 Login/Logout Notifications:', {
+      console.log('Login/Logout Notifications:', {
         total: loginLogoutNotifications.length,
         login: activityStats.loginActivities,
         logout: activityStats.logoutActivities,

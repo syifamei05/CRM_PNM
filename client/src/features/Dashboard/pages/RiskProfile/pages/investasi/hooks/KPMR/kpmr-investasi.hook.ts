@@ -4,7 +4,7 @@ import { kpmrInvestasiService, KpmrInvestasi, CreateKpmrInvestasiDto, UpdateKpmr
 interface Filters {
   year?: number;
   quarter?: string;
-  aspek_no?: string;
+  aspekNo?: string;
   query?: string;
 }
 

@@ -1,34 +1,39 @@
-
 import axios from 'axios';
 
-const API_URL = process.env.NODE_ENV === 'production' ? 'https://your-production-url.com/api/v1/kpmr-investasi' : 'http://localhost:5530/api/v1/kpmr-investasi';
-
+const API_URL = process.env.NODE_ENV === 'production' ? 'https://your-production-url.com/kpmr-investasi' : 'http://localhost:5530/api/v1/kpmr-investasi';
 export interface KpmrInvestasi {
   id_kpmr_investasi: number;
   year: number;
   quarter: string;
-  aspek_no: string;
-  aspek_title: string;
-  section_title: string;
-  tata_kelola_resiko: string;
-  evidence: string;
-  created_at?: string;
-  updated_at?: string;
+  aspekNo?: string;
+  aspekBobot?: number;
+  aspekTitle?: string;
+  sectionNo?: string;
+  indikator: string;
+  sectionSkor?: number;
+  tata_kelola_resiko?: string;
+  strong?: string;
+  satisfactory?: string;
+  fair?: string;
+  marginal?: string;
+  unsatisfactory?: string;
+  evidence?: string;
 }
 
 export interface CreateKpmrInvestasiDto extends Omit<KpmrInvestasi, 'id_kpmr_investasi'> {}
 export interface UpdateKpmrInvestasiDto extends Partial<CreateKpmrInvestasiDto> {}
 
 export const kpmrInvestasiService = {
-  async getAll(filters?: { year?: number; quarter?: string; aspek_no?: string; query?: string }) {
+  async getAll(filters?: { year?: number; quarter?: string; aspekNo?: string; query?: string }) {
     const params = new URLSearchParams();
 
     if (filters?.year) params.append('year', String(filters.year));
     if (filters?.quarter) params.append('quarter', filters.quarter);
-    if (filters?.aspek_no) params.append('aspek_no', filters.aspek_no);
+    if (filters?.aspekNo) params.append('aspekNo', filters.aspekNo); // ❌ PERBAIKI: aspek_no -> aspekNo
     if (filters?.query) params.append('query', filters.query);
 
-    const res = await axios.get<KpmrInvestasi[]>(`${API_URL}?${params.toString()}`);
+    const url = params.toString() ? `${API_URL}?${params.toString()}` : API_URL;
+    const res = await axios.get<KpmrInvestasi[]>(url);
     return res.data;
   },
 
@@ -53,7 +58,6 @@ export const kpmrInvestasiService = {
   },
 
   async remove(id: number) {
-    const res = await axios.delete(`${API_URL}/${id}`);
-    return res.data;
+    await axios.delete(`${API_URL}/${id}`);
   },
 };

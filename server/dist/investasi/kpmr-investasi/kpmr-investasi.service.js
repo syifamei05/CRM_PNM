@@ -50,8 +50,21 @@ let KpmrInvestasiService = KpmrInvestasiService_1 = class KpmrInvestasiService {
         return entity;
     }
     async update(id, dto) {
-        await this.kpmrInvestRepository.update(id, dto);
-        return this.findOne(id);
+        this.logger.log(`UPDATE request for ID ${id}: ${JSON.stringify(dto)}`);
+        try {
+            const existing = await this.findOne(id);
+            if (!existing) {
+                throw new common_1.NotFoundException(`Data dengan ID ${id} tidak ditemukan`);
+            }
+            await this.kpmrInvestRepository.update({ id_kpmr_investasi: id }, dto);
+            const updated = await this.findOne(id);
+            this.logger.log(`UPDATE success: ${JSON.stringify(updated)}`);
+            return updated;
+        }
+        catch (error) {
+            this.logger.error(`UPDATE failed for ID ${id}`, error);
+            throw error;
+        }
     }
     async remove(id) {
         const result = await this.kpmrInvestRepository.delete(id);

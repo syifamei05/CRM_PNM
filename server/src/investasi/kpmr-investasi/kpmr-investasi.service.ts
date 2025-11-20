@@ -50,8 +50,23 @@ export class KpmrInvestasiService {
     id: number,
     dto: UpdateKpmrInvestasiDto,
   ): Promise<KpmrInvestasi> {
-    await this.kpmrInvestRepository.update(id, dto);
-    return this.findOne(id);
+    this.logger.log(`UPDATE request for ID ${id}: ${JSON.stringify(dto)}`);
+
+    try {
+      const existing = await this.findOne(id);
+      if (!existing) {
+        throw new NotFoundException(`Data dengan ID ${id} tidak ditemukan`);
+      }
+
+      await this.kpmrInvestRepository.update({ id_kpmr_investasi: id }, dto);
+
+      const updated = await this.findOne(id);
+      this.logger.log(`UPDATE success: ${JSON.stringify(updated)}`);
+      return updated;
+    } catch (error) {
+      this.logger.error(`UPDATE failed for ID ${id}`, error);
+      throw error;
+    }
   }
 
   async remove(id: number): Promise<void> {
