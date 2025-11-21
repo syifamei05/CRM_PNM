@@ -209,7 +209,7 @@ const Sidebar = () => {
                 </Link>
                 <div className="space-y-1">
                   <button onClick={() => setOpenRisk(!openRisk)} className={`${riskButtonClass(isActive('/dashboard/risk-form'))} w-full flex justify-between`}>
-                    <span className="flex gap-2 text-left">Profil Resiko Holding</span>
+                    <span className="flex gap-2 text-left">Profil Resiko Holdingkout </span>
                     {openRisk ? <FaChevronUp className="text-xs" /> : <FaChevronDown className="text-xs" />}
                   </button>
 
