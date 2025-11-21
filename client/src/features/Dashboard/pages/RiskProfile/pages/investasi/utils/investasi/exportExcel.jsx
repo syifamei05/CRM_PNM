@@ -134,14 +134,13 @@ export function exportInvestasiToExcel(filteredRows, viewYear, viewQuarter) {
   ];
   ws['!freeze'] = { xSplit: 0, ySplit: 2 };
 
-  // merge vertikal per entri
   const firstDataRow = 2;
   mainRowIndexes.forEach((idx) => {
     const rMain = firstDataRow + idx;
-    ws['!merges'].push({ s: { r: rMain, c: 0 }, e: { r: rMain + 2, c: 0 } }); // No
-    ws['!merges'].push({ s: { r: rMain, c: 1 }, e: { r: rMain + 2, c: 1 } }); // Bobot Section
-    ws['!merges'].push({ s: { r: rMain, c: 2 }, e: { r: rMain + 2, c: 2 } }); // Section
-    ws['!merges'].push({ s: { r: rMain, c: 16 }, e: { r: rMain + 2, c: 16 } }); // Keterangan
+    ws['!merges'].push({ s: { r: rMain, c: 0 }, e: { r: rMain + 2, c: 0 } }); 
+    ws['!merges'].push({ s: { r: rMain, c: 1 }, e: { r: rMain + 2, c: 1 } });
+    ws['!merges'].push({ s: { r: rMain, c: 2 }, e: { r: rMain + 2, c: 2 } }); 
+    ws['!merges'].push({ s: { r: rMain, c: 16 }, e: { r: rMain + 2, c: 16 } }); 
   });
 
   const summaryRowAbs = firstDataRow + summaryRowIndexRel;
@@ -171,7 +170,8 @@ export function exportInvestasiToExcel(filteredRows, viewYear, viewQuarter) {
       cell.s = { ...(cell.s || {}), ...bodyStyle };
       const hasValue = !(cell.v === '' || cell.v == null);
 
-     
+
+
       if ([0, 1, 5, 6, 7].includes(c) && hasValue) {
         cell.s = withFill(cell.s, COLORS.blueFill);
       }
@@ -223,7 +223,6 @@ export function exportInvestasiToExcel(filteredRows, viewYear, viewQuarter) {
         }
       }
 
-      // Weighted (center + abu-abu kalau ada)
       if (c === 15) {
         cell.s.alignment = { ...(cell.s.alignment || {}), horizontal: 'center' };
         if (hasValue) {
@@ -233,13 +232,11 @@ export function exportInvestasiToExcel(filteredRows, viewYear, viewQuarter) {
         }
       }
 
-      // Keterangan center
       if (c === 16) {
         cell.s.alignment = { ...(cell.s.alignment || {}), horizontal: 'center' };
       }
     }
 
-    // Aksen "web look" baris utama: Section/SubNo/Indikator hanya jika ada isi
     const offset = (r - firstDataRow) % 3;
     if (offset === 0) {
       [2, 3, 4].forEach((c) => {
